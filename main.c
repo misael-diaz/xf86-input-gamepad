@@ -206,7 +206,19 @@ int main()
 					fprintf(stdout, "INIT-AXIS: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
 				}
 				else {
-					fprintf(stdout, "AXIS: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					switch (axmap[number]) {
+					case ABS_HAT0X: {
+						fprintf(stdout, "AXIS HAT0X: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case ABS_HAT0Y: {
+						fprintf(stdout, "AXIS HAT0Y: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					default: {
+						 fprintf(stdout, "AXIS: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					}
 				}
 			}
 			if ((0 == value) && (1 == type) && (9 == number)) {
