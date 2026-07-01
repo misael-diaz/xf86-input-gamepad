@@ -1,2 +1,50 @@
 # xf86-input--gamepad
 xf86 driver development for gamepads
+
+**Development status**: writing exploratory code to learn about the Linux legacy joystick event handling.
+
+## Development Progress
+
+### Getting to know my Gamepad through system calls
+
+Processing input events from the gamepad is far simpler than I imagined back when I started playing video games in GNU/Linux. Reading events is as simple as a system call `read`. If you want to read a single joystick event well you pass a pointer to a `struct js_event` instance and use `sizeof` to inform how many bytes the application intends to read.
+
+Querying the name of the gamepad is as simple as issuing a `ioctl` system call. The header `linux/joystick.h` provides the macro definitions for each of the operations that you may want to do. For getting the name of the gamepad, there's the following macro:
+
+```c
+#define JSIOCGNAME(len)		_IOC(_IOC_READ, 'j', 0x13, len)
+```
+
+where `_IOC` is defined in `asm-generic/ioctl.h`:
+
+```c
+#define _IOC(dir,type,nr,size) \
+        (((dir)  << _IOC_DIRSHIFT) | \
+         ((type) << _IOC_TYPESHIFT) | \
+         ((nr)   << _IOC_NRSHIFT) | \
+         ((size) << _IOC_SIZESHIFT))
+```
+
+along with the other macros that you see, what matters is that the macro function is a convenient function for bit manipulation for the `ioctl` system call. It all boils down to the following code snippet:
+
+```c
+char name_gamepad[256];
+memset(name_gamepad, 0, sizeof(name_gamepad));
+rc = ioctl(fd, JSIOCGNAME(sizeof(name_gamepad)), name_gamepad);
+```
+
+of course you should check the returned code `rc` and `errno` values for runtime errors.
+
+By looking at this I realized that when I plug in a gamepad the linux kernel probably uses the same `ioctl` call to log the name of the device in the kernel ring buffer. The kernel ring buffer can be obtained by executing the `dmesg` command. And to me this realization was a truly exciting moment (consider that this is the first time I am writing code to process events issued by the Linux kernel).
+
+## Build
+
+```sh
+gcc -Wall -Wextra -Wformat -O0 -g main.c -o test.bin
+```
+
+## Run
+
+```sh
+./test.bin
+```
