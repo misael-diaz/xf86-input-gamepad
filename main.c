@@ -41,6 +41,60 @@ int main()
 		_exit(1);
 	}
 
+	char axes = -1;
+	rc = ioctl(fd, JSIOCGAXES, &axes);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: failed to obtain number of axes");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		_exit(1);
+	}
+	fprintf(stdout, "axes: %d\n", axes);
+
+	char buttons = -1;
+	rc = ioctl(fd, JSIOCGBUTTONS, &buttons);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: failed to obtain number of buttons");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		_exit(1);
+	}
+	fprintf(stdout, "buttons: %d\n", buttons);
+
+	uint8_t axmap[ABS_CNT];
+	int const len_axmap = ABS_CNT;
+	memset(axmap, 0, sizeof(axmap));
+	rc = ioctl(fd, JSIOCGAXMAP, &axmap);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: failed to obtain axes mappings");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		_exit(1);
+	}
+	fprintf(stdout, "axesmap-length: %d\n", len_axmap);
+	for (int i = 0; i != axes; ++i) {
+		fprintf(stdout, "axmap[%d]: 0x%02x\n", i, axmap[i]);
+	}
+
+	uint16_t btnmap[KEY_MAX - BTN_MISC + 1];
+	int const len_btnmap = (KEY_MAX - BTN_MISC + 1);
+	memset(btnmap, 0, sizeof(btnmap));
+	rc = ioctl(fd, JSIOCGBTNMAP, &btnmap);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: failed to obtain button mappings");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		_exit(1);
+	}
+	fprintf(stdout, "buttonmap-length: %d\n", len_btnmap);
+	for (int i = 0; i != buttons; ++i) {
+		fprintf(stdout, "btnmap[%d]: 0x%04x\n", i, btnmap[i]);
+	}
+
 	errno = 0;
 	char name_gamepad[256];
 	memset(name_gamepad, 0, sizeof(name_gamepad));
