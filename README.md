@@ -50,5 +50,5 @@ gcc -Wall -Wextra -Wformat -O0 -g main.c -o gamepad.bin
 ## Run
 
 ```sh
-./test.bin
+./gamepad.bin
 ```
