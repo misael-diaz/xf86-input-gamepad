@@ -39,7 +39,7 @@ By looking at this I realized that when I plug in a gamepad the linux kernel pro
 
 ### Gamepad Mappings
 
-Wrote an event-loop that processes joystick events as they happen (one at a time). The fields of the `struct js_event` are logged on the console along the button and axes mappings (commit [3ce9d33e](https://github.com/misael-diaz/xf86-input-gamepad/blob/3ce9d33e464258415847b83b1d5aeb47466b2129)).
+Wrote an event-loop that processes joystick events as they happen (one at a time). The fields of the `struct js_event` are logged on the console along the button and axes mappings (commit [3ce9d33e](https://github.com/misael-diaz/xf86-input-gamepad/tree/3ce9d33e464258415847b83b1d5aeb47466b2129)).
 
 ## Build
 
