@@ -128,7 +128,23 @@ int main()
 			int64_t value = ev.value;
 			int64_t type = ev.type;
 			int64_t number = ev.number;
-			fprintf(stdout, "bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+			//fprintf(stdout, "bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+			if (JS_EVENT_BUTTON == (type & JS_EVENT_BUTTON)) {
+				if (type & JS_EVENT_INIT) {
+					fprintf(stdout, "INIT-BUTTON: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+				}
+				else {
+					fprintf(stdout, "BUTTON: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+				}
+			}
+			else if (JS_EVENT_AXIS == (type & JS_EVENT_AXIS)) {
+				if (type & JS_EVENT_INIT) {
+					fprintf(stdout, "INIT-AXIS: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+				}
+				else {
+					fprintf(stdout, "AXIS: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+				}
+			}
 			if ((0 == value) && (1 == type) && (9 == number)) {
 				fprintf(stdout, "%s\n", "quitting upon user request");
 				break;
