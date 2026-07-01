@@ -134,7 +134,71 @@ int main()
 					fprintf(stdout, "INIT-BUTTON: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
 				}
 				else {
-					fprintf(stdout, "BUTTON: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					switch (btnmap[number]) {
+					case BTN_START: {
+						fprintf(stdout, "BUTTON START: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_SELECT: {
+						fprintf(stdout, "BUTTON SELECT: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_A: {
+						fprintf(stdout, "BUTTON A: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_B: {
+						fprintf(stdout, "BUTTON B: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_C: {
+						fprintf(stdout, "BUTTON C: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_X: {
+						fprintf(stdout, "BUTTON X: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_Y: {
+						fprintf(stdout, "BUTTON Y: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_Z: {
+						fprintf(stdout, "BUTTON Z: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_TL: {
+						fprintf(stdout, "BUTTON TL: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_TR: {
+						fprintf(stdout, "BUTTON TR: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_TL2: {
+						fprintf(stdout, "BUTTON TL2: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_TR2: {
+						fprintf(stdout, "BUTTON TR2: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_THUMBL: {
+						fprintf(stdout, "BUTTON THUMBL: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_THUMBR: {
+						fprintf(stdout, "BUTTON THUMBR: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					case BTN_MODE: {
+						fprintf(stdout, "BUTTON MODE: bytes: %ld time: %ld value: %ld type: %ld number: %ld\n", bytes_read, time, value, type, number);
+					}
+					break;
+					default: {
+						fprintf(stdout, "BUTTON PENDING: bytes: %ld time: %ld value: %ld type: %ld number: %ld mapping: 0x%04x\n", bytes_read, time, value, type, number, btnmap[number]);
+					}
+					}
 				}
 			}
 			else if (JS_EVENT_AXIS == (type & JS_EVENT_AXIS)) {
