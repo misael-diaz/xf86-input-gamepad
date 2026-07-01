@@ -37,6 +37,10 @@ of course you should check the returned code `rc` and `errno` values for runtime
 
 By looking at this I realized that when I plug in a gamepad the linux kernel probably uses the same `ioctl` call to log the name of the device in the kernel ring buffer. The kernel ring buffer can be obtained by executing the `dmesg` command. And to me this realization was a truly exciting moment (consider that this is the first time I am writing code to process events issued by the Linux kernel).
 
+### Gamepad Mappings
+
+Wrote an event-loop that processes joystick events as they happen (one at a time). The fields of the `struct js_event` are logged on the console along the button and axes mappings (commit [3ce9d33e](https://github.com/misael-diaz/xf86-input-gamepad/blob/3ce9d33e464258415847b83b1d5aeb47466b2129)).
+
 ## Build
 
 ```sh
