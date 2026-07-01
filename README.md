@@ -44,7 +44,7 @@ Wrote an event-loop that processes joystick events as they happen (one at a time
 ## Build
 
 ```sh
-gcc -Wall -Wextra -Wformat -O0 -g main.c -o test.bin
+gcc -Wall -Wextra -Wformat -O0 -g main.c -o gamepad.bin
 ```
 
 ## Run
