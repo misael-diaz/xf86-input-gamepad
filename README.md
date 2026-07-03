@@ -41,10 +41,26 @@ By looking at this I realized that when I plug in a gamepad the linux kernel pro
 
 Wrote an event-loop that processes joystick events as they happen (one at a time). The fields of the `struct js_event` are logged on the console along the button and axes mappings (commit [3ce9d33e](https://github.com/misael-diaz/xf86-input-gamepad/tree/3ce9d33e464258415847b83b1d5aeb47466b2129)).
 
+## Requirements
+
+The user that executes the code must be in the `input` group
+
+if not you must add the user via (you must be root to do this):
+
+```sh
+usermod -aG input username
+```
+
+and then for this to take effect immediately (as a regular user):
+
+```sh
+newgrp input
+```
+
 ## Build
 
 ```sh
-gcc -Wall -Wextra -Wformat -O0 -g main.c -o gamepad.bin
+gcc -Wall -Wextra -Wformat -O0 -gdwarf-4 -g main.c -o gamepad.bin
 ```
 
 ## Run
