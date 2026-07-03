@@ -5,11 +5,87 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <dirent.h>
 #include <string.h>
 #include <errno.h>
 
+// NOTE: this way we know the lowerbounds of the strings that we concatenate into
+_Static_assert(sizeof(struct dirent) > 256);
+
+int IsEventDevice(struct dirent const *dir)
+{
+	int rc = 0;
+	char event[] = "event";
+	uint64_t const len = (sizeof(event) - 1);
+	rc = strncmp(dir->d_name, event, len);
+	return ((0 == rc)? 1 : 0);
+}
+
 int main()
+{
+	errno = 0;
+	int64_t rc = 0;
+	struct dirent **namelist = NULL;
+	rc = scandir("/dev/input", &namelist, IsEventDevice, alphasort);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: scandir failed to find events");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		_exit(1);
+	}
+
+	int const devno = rc;
+	for (int i = 0; i != devno; ++i) {
+		errno = 0;
+		char devname[sizeof(struct dirent) << 1] = "/dev/input/";
+		strcat(devname, namelist[i]->d_name);
+		fprintf(stdout, "%s\n", devname);
+		int const fd = open(devname, O_RDONLY);
+		if (-1 == fd) {
+			fprintf(stderr, "error: failed to open: %s\n", devname);
+			if (errno) {
+				fprintf(stderr, "%s\n", strerror(errno));
+			}
+
+			for (int i = 0; i != devno; ++i) {
+				free(namelist[i]);
+			}
+			free(namelist);
+			_exit(1);
+		}
+
+		errno = 0;
+		char dev[sizeof(struct dirent) << 1];
+		memset(dev, 0, sizeof(dev));
+		uint64_t const len = sizeof(dev);
+		rc = ioctl(fd, EVIOCGNAME(len), dev);
+		if (-1 == rc) {
+			fprintf(stderr, "error: failed to query name of: %s\n", devname);
+			if (errno) {
+				fprintf(stderr, "%s\n", strerror(errno));
+			}
+
+			for (int i = 0; i != devno; ++i) {
+				free(namelist[i]);
+			}
+			free(namelist);
+			_exit(1);
+		}
+
+		fprintf(stdout, "dev: %s\n", dev);
+		close(fd);
+	}
+
+	for (int i = 0; i != devno; ++i) {
+		free(namelist[i]);
+	}
+	free(namelist);
+	return 0;
+}
+/*
 {
 	errno = 0;
 	struct js_event ev = {};
@@ -231,3 +307,4 @@ int main()
 	close(fd);
 	return 0;
 }
+*/
