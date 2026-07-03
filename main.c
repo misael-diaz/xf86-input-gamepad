@@ -13,6 +13,14 @@
 
 // NOTE: this way we know the lowerbounds of the strings that we concatenate into
 _Static_assert(sizeof(struct dirent) > 256);
+_Static_assert(sizeof(long) == sizeof(int64_t));
+_Static_assert(sizeof(int64_t) == 8);
+
+#define BITS_PER_LONG 64
+#define NBITS(x) (((x) >> 6))
+#define NBYTES(x) ((NBITS(x)) << 3)
+#define OFF(x) ((x) & 63)
+#define test_bit(bit, array) (((array[NBITS(bit)] >> OFF(bit))) & 1)
 
 int IsEventDevice(struct dirent const *dir)
 {
@@ -42,7 +50,6 @@ int main()
 		errno = 0;
 		char devname[sizeof(struct dirent) << 1] = "/dev/input/";
 		strcat(devname, namelist[i]->d_name);
-		fprintf(stdout, "%s\n", devname);
 		int const fd = open(devname, O_RDONLY);
 		if (-1 == fd) {
 			fprintf(stderr, "error: failed to open: %s\n", devname);
@@ -75,7 +82,45 @@ int main()
 			_exit(1);
 		}
 
-		fprintf(stdout, "dev: %s\n", dev);
+		errno = 0;
+		uint64_t bit[NBITS(KEY_MAX) + BITS_PER_LONG];
+		uint64_t code[NBITS(KEY_MAX) + BITS_PER_LONG];
+		memset(bit, 0, sizeof(bit));
+		memset(code, 0, sizeof(code));
+		rc = ioctl(fd, EVIOCGBIT(0, NBYTES((KEY_MAX - 1)) + 8), bit);
+		if (-1 == rc) {
+			fprintf(stderr, "error: failed to query bits of: %s\n", devname);
+			if (errno) {
+				fprintf(stderr, "%s\n", strerror(errno));
+			}
+
+			for (int i = 0; i != devno; ++i) {
+				free(namelist[i]);
+			}
+			free(namelist);
+			_exit(1);
+		}
+
+		if (test_bit(EV_KEY, bit)) {
+			errno = 0;
+			rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES((KEY_MAX - 1)) + 8), code);
+			if (-1 == rc) {
+				fprintf(stderr, "error: failed to query bits of: %s\n", devname);
+				if (errno) {
+					fprintf(stderr, "%s\n", strerror(errno));
+				}
+
+				for (int i = 0; i != devno; ++i) {
+					free(namelist[i]);
+				}
+				free(namelist);
+				_exit(1);
+			}
+			if (test_bit(BTN_GAMEPAD, code)) {
+				fprintf(stderr, "gamepad detected: %s\n", devname);
+			}
+		}
+
 		close(fd);
 	}
 
