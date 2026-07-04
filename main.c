@@ -31,11 +31,12 @@ int IsEventDevice(struct dirent const *dir)
 	return ((0 == rc)? 1 : 0);
 }
 
-int main()
+char *GetGamePadDeviceName(void)
 {
 	errno = 0;
 	int64_t rc = 0;
 	struct dirent **namelist = NULL;
+	char *gamepad = NULL;
 	rc = scandir("/dev/input", &namelist, IsEventDevice, alphasort);
 	if (-1 == rc) {
 		fprintf(stderr, "%s\n", "error: scandir failed to find events");
@@ -118,6 +119,7 @@ int main()
 			}
 			if (test_bit(BTN_GAMEPAD, code)) {
 				fprintf(stderr, "gamepad detected: %s\n", devname);
+				gamepad = strdup(devname);
 			}
 		}
 
@@ -128,6 +130,42 @@ int main()
 		free(namelist[i]);
 	}
 	free(namelist);
+
+	return gamepad;
+}
+
+int main()
+{
+	int64_t rc = 0;
+	char *devname_gamepad = GetGamePadDeviceName();
+	if (!devname_gamepad) {
+		fprintf(stdout, "%s\n", "no gamepad devices were found");
+		_exit(0);
+	}
+
+	fprintf(stdout, "%s\n", devname_gamepad);
+	int fd = open(devname_gamepad, O_RDONLY);
+	if (-1 == fd) {
+		fprintf(stderr, "error: failed to open gamepad: %s\n", devname_gamepad);
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		free(devname_gamepad);
+		_exit(1);
+	}
+
+	struct input_id iid = {};
+	rc = ioctl(fd, EVIOCGID, &iid);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: scandir failed to get ID");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		free(devname_gamepad);
+		_exit(1);
+	}
+
+	free(devname_gamepad);
 	return 0;
 }
 /*
