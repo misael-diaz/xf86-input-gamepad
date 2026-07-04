@@ -75,25 +75,25 @@ A quick reference of the macros defined by the Linux kernel that are relevant fo
 
 ### Bit Operations
 
-From the Linux Kernel source tree [`include/linux/bitops.h`](https://github.com/torvalds/linux/tree/master/include/linux/bitopts.h):
+From the Linux Kernel source blob [`include/linux/bitops.h`](https://github.com/torvalds/linux/blob/master/include/linux/bitopts.h):
 
 ```c
 #define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
 #define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_TYPE(long))
 ```
 
-From the Linux Kernel source tree [`include/linux/bits.h`](https://github.com/torvalds/linux/tree/master/include/linux/bits.h):
+From the Linux Kernel source blob [`include/linux/bits.h`](https://github.com/torvalds/linux/blob/master/include/linux/bits.h):
 
 ```c
 #define BITS_PER_BYTE 8
 ```
-From the Linux Kernel source tree `linux/include/linux/kernel.h`:
+From the Linux Kernel source blob `linux/include/linux/kernel.h`:
 
 ```c
 define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
 ```
 
-From the Linux Kernel source tree [`include/uapi/linux/kernel.h`](https://github.com/torvalds/linux/tree/master/include/uapi/linux/kernel.h):
+From the Linux Kernel source blob [`include/uapi/linux/kernel.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/kernel.h):
 
 ```c
 #define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))

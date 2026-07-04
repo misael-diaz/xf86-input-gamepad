@@ -25,6 +25,8 @@ _Static_assert(sizeof(struct dirent) > 256);
 _Static_assert(sizeof(long) == sizeof(int64_t));
 _Static_assert(sizeof(int64_t) == 8);
 
+// TODO: revise these definitions against those used by the linux kernel
+// TODO: check if you can find them in the system headers so that instead of redefining them here you use them or validate against them
 #define BITS_PER_LONG 64
 #define NBITS(x) (((x) >> 6))
 #define NBYTES(x) ((NBITS(x)) << 3)
@@ -228,6 +230,18 @@ int main()
 		}
 	}
 	fprintf(stdout, "axes: %d\n", axes);
+
+	struct input_mask im = {};
+	im.type = EV_KEY;
+	rc = ioctl(fd, EVIOCGMASK, &im);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: failed to probe input masks");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		free(devname_gamepad);
+		_exit(1);
+	}
 
 	struct input_event ev = {};
 	while (1) {
