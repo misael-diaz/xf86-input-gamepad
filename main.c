@@ -181,6 +181,54 @@ int main()
 		_exit(1);
 	}
 
+	uint64_t bits[NBITS(KEY_MAX) + BITS_PER_LONG];
+	memset(bits, 0, sizeof(bits));
+	rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES((KEY_MAX - 1)) + 8), bits);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", "error: failed to probe key events");
+		if (errno) {
+			fprintf(stderr, "%s\n", strerror(errno));
+		}
+		free(devname_gamepad);
+		_exit(1);
+	}
+
+	int buttons = 0;
+	for (int32_t code = BTN_GAMEPAD; code != BTN_DIGI; ++code) {
+		if (test_bit(code, bits)) {
+			++buttons;
+		}
+	}
+	fprintf(stdout, "buttons: %d\n", buttons);
+
+	int dpad_buttons = 0;
+	for (int32_t code = BTN_DPAD_UP; code != KEY_ALS_TOGGLE; ++code) {
+		if (test_bit(code, bits)) {
+			++dpad_buttons;
+		}
+	}
+	fprintf(stdout, "dpad-buttons: %d\n", dpad_buttons);
+
+	memset(bits, 0, sizeof(bits));
+	rc = ioctl(fd, EVIOCGBIT(EV_ABS, NBYTES((ABS_MAX - 1)) + 8), bits);
+	int axes = 0;
+	for (int32_t code = ABS_X; code != ABS_PRESSURE; ++code) {
+		if (
+			(ABS_THROTTLE == code) ||
+			(ABS_RUDDER == code) ||
+			(ABS_WHEEL == code) ||
+			(ABS_GAS == code) ||
+			(ABS_BRAKE == code) ||
+			0
+		   ) {
+			continue;
+		}
+		if (test_bit(code, bits)) {
+			++axes;
+		}
+	}
+	fprintf(stdout, "axes: %d\n", axes);
+
 	struct input_event ev = {};
 	while (1) {
 		rc = read(fd, &ev, sizeof(ev));
