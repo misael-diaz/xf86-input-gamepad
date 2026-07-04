@@ -60,7 +60,7 @@ newgrp input
 ## Build
 
 ```sh
-gcc -Wall -Wextra -Wformat -O0 -gdwarf-4 -g main.c -o gamepad.bin
+gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -O0 -gdwarf-4 -g main.c -o gamepad.bin
 ```
 
 ## Run
