@@ -75,7 +75,7 @@ A quick reference of the macros defined by the Linux kernel that are relevant fo
 
 ### Bit Operations
 
-From the Linux Kernel source blob [`include/linux/bitops.h`](https://github.com/torvalds/linux/blob/master/include/linux/bitopts.h):
+From the Linux Kernel source blob [`include/linux/bitops.h`](https://github.com/torvalds/linux/blob/master/include/linux/bitops.h):
 
 ```c
 #define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
