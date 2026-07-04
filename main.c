@@ -11,6 +11,10 @@
 #include <string.h>
 #include <errno.h>
 
+#include <xorg/xf86.h>
+#include <xorg/xf86Xinput.h>
+#include <xorg/xf86Opt.h>
+
 // REFS:
 // https://github.com/torvalds/linux/tree/master/Documentation/input/event-codes.rst
 // https://github.com/torvalds/linux/tree/master/Documentation/input/gamepad.rst
@@ -206,6 +210,17 @@ int main()
 		}
 	}
 
+	// NOTE: the following code is experimental and belongs in its own function
+	// TODO: impl PreInit and UnInit functions and see if you need any of the others
+	struct _InputDriverRec driver = {};
+	driver.driverVersion = ((1 << 16) & 0xff) | ((0 << 8) & 0xff) | (0 & 0xff);
+	driver.driverName = "gamepad";
+	driver.PreInit = NULL;
+	driver.UnInit = NULL;
+	driver.module = NULL;
+	driver.default_options = NULL;
+	driver.capabilities = 0;
+	fprintf(stdout, "xf86-driver-gamepad-version: %d\n", driver.driverVersion >> 16);
 	free(devname_gamepad);
 	return 0;
 }
