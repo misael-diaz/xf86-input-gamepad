@@ -11,7 +11,10 @@
 #include <string.h>
 #include <errno.h>
 
-// REFS: https://gitlab.freedesktop.org/libevdev/evtest
+// REFS:
+// https://github.com/torvalds/linux/tree/master/Documentation/input/event-codes.rst
+// https://github.com/torvalds/linux/tree/master/Documentation/input/gamepad.rst
+// https://gitlab.freedesktop.org/libevdev/evtest
 
 // NOTE: this way we know the lowerbounds of the strings that we concatenate into
 _Static_assert(sizeof(struct dirent) > 256);
