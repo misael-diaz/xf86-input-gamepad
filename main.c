@@ -25,13 +25,12 @@ _Static_assert(sizeof(struct dirent) > 256);
 _Static_assert(sizeof(long) == sizeof(int64_t));
 _Static_assert(sizeof(int64_t) == 8);
 
-// TODO: revise these definitions against those used by the linux kernel
-// TODO: check if you can find them in the system headers so that instead of redefining them here you use them or validate against them
-#define BITS_PER_LONG 64
-#define NBITS(x) (((x) >> 6))
+#define __LINUX_KERNEL_BITS_TO_LONGS(n) (((n) + 63) >> 6)
+#define NBITS(x) __LINUX_KERNEL_BITS_TO_LONGS(x)
 #define NBYTES(x) ((NBITS(x)) << 3)
 #define OFF(x) ((x) & 63)
-#define test_bit(bit, array) (((array[NBITS(bit)] >> OFF(bit))) & 1)
+#define LONG(x) ((x) >> 6)
+#define test_bit(bit, array) (((array[LONG(bit)] >> OFF(bit))) & 1)
 
 int IsEventDevice(struct dirent const *dir)
 {
@@ -95,11 +94,11 @@ char *GetGamePadDeviceName(void)
 		}
 
 		errno = 0;
-		uint64_t bit[NBITS(KEY_MAX) + BITS_PER_LONG];
-		uint64_t code[NBITS(KEY_MAX) + BITS_PER_LONG];
+		uint64_t bit[NBITS(KEY_CNT)];
+		uint64_t code[NBITS(KEY_CNT)];
 		memset(bit, 0, sizeof(bit));
 		memset(code, 0, sizeof(code));
-		rc = ioctl(fd, EVIOCGBIT(0, NBYTES((KEY_MAX - 1)) + 8), bit);
+		rc = ioctl(fd, EVIOCGBIT(0, NBYTES(KEY_CNT)), bit);
 		if (-1 == rc) {
 			fprintf(stderr, "error: failed to query bits of: %s\n", devname);
 			if (errno) {
@@ -115,7 +114,7 @@ char *GetGamePadDeviceName(void)
 
 		if (test_bit(EV_KEY, bit)) {
 			errno = 0;
-			rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES((KEY_MAX - 1)) + 8), code);
+			rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES(KEY_CNT)), code);
 			if (-1 == rc) {
 				fprintf(stderr, "error: failed to query bits of: %s\n", devname);
 				if (errno) {
@@ -183,9 +182,9 @@ int main()
 		_exit(1);
 	}
 
-	uint64_t bits[NBITS(KEY_MAX) + BITS_PER_LONG];
+	uint64_t bits[NBITS(KEY_CNT)];
 	memset(bits, 0, sizeof(bits));
-	rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES((KEY_MAX - 1)) + 8), bits);
+	rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES(KEY_CNT)), bits);
 	if (-1 == rc) {
 		fprintf(stderr, "%s\n", "error: failed to probe key events");
 		if (errno) {
@@ -212,7 +211,7 @@ int main()
 	fprintf(stdout, "dpad-buttons: %d\n", dpad_buttons);
 
 	memset(bits, 0, sizeof(bits));
-	rc = ioctl(fd, EVIOCGBIT(EV_ABS, NBYTES((ABS_MAX - 1)) + 8), bits);
+	rc = ioctl(fd, EVIOCGBIT(EV_ABS, NBYTES(ABS_CNT)), bits);
 	int axes = 0;
 	for (int32_t code = ABS_X; code != ABS_PRESSURE; ++code) {
 		if (
