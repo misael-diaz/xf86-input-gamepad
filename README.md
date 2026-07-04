@@ -1,6 +1,8 @@
 # xf86-input--gamepad
 xf86 driver development for gamepads
 
+This driver does not intend to handle analog signals (in the form of events) at this point, for now the driver is meant to handle events for action buttons and direction-pads (dpads).
+
 **Development status**: writing exploratory code to learn about the Linux legacy joystick event handling.
 
 ## Development Progress
