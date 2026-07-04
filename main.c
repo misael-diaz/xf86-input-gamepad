@@ -173,7 +173,7 @@ int main()
 	struct input_id iid = {};
 	rc = ioctl(fd, EVIOCGID, &iid);
 	if (-1 == rc) {
-		fprintf(stderr, "%s\n", "error: scandir failed to get ID");
+		fprintf(stderr, "%s\n", "error: failed to get gamepad input ID");
 		if (errno) {
 			fprintf(stderr, "%s\n", strerror(errno));
 		}
