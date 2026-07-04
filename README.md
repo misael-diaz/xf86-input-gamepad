@@ -82,18 +82,18 @@ From the Linux Kernel source blob [`include/linux/bitops.h`](https://github.com/
 #define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_TYPE(long))
 ```
 
-From the Linux Kernel source tree [`include/linux/bits.h`](https://github.com/torvalds/linux/blob/master/include/linux/bits.h);
+From the Linux Kernel source tree [`include/linux/bits.h`](https://github.com/torvalds/linux/blob/219d54332a09e8d8741c1e1982f5eae56099de85/include/linux/bits.h);
 
 ```c
 #define BITS_PER_BYTE 8
 ```
-From the Linux Kernel source tree [`linux/include/linux/kernel.h`](https://github.com/torvalds/linux/blob/master/include/linux/kernel.h):
+From the Linux Kernel source tree [`linux/include/linux/kernel.h`](https://github.com/torvalds/linux/blob/219d54332a09e8d8741c1e1982f5eae56099de85/include/linux/kernel.h):
 
 ```c
-define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
+#define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
 ```
 
-From the Linux Kernel source tree [`include/uapi/linux/kernel.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/kernel.h):
+From the Linux Kernel source tree [`include/uapi/linux/kernel.h`](https://github.com/torvalds/linux/blob/219d54332a09e8d8741c1e1982f5eae56099de85/include/uapi/linux/kernel.h):
 
 ```c
 #define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
