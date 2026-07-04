@@ -230,11 +230,17 @@ int main()
 	}
 	fprintf(stdout, "axes: %d\n", axes);
 
+	// NOTES: disables unsupported events for the xf86 driver
+	uint64_t codes[NBITS(ABS_CNT)];
+	memset(codes, 0, sizeof(codes));
+	codes[0] |= (1 << ABS_HAT0X) | (1 << ABS_HAT0Y);
 	struct input_mask im = {};
-	im.type = EV_KEY;
-	rc = ioctl(fd, EVIOCGMASK, &im);
+	im.type = EV_ABS;
+	im.codes_ptr = (uint64_t) codes;
+	im.codes_size = NBYTES(ABS_CNT);
+	rc = ioctl(fd, EVIOCSMASK, &im);
 	if (-1 == rc) {
-		fprintf(stderr, "%s\n", "error: failed to probe input masks");
+		fprintf(stderr, "%s\n", "error: failed to set input-masks");
 		if (errno) {
 			fprintf(stderr, "%s\n", strerror(errno));
 		}
