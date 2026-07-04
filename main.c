@@ -11,6 +11,8 @@
 #include <string.h>
 #include <errno.h>
 
+// REFS: https://gitlab.freedesktop.org/libevdev/evtest
+
 // NOTE: this way we know the lowerbounds of the strings that we concatenate into
 _Static_assert(sizeof(struct dirent) > 256);
 _Static_assert(sizeof(long) == sizeof(int64_t));
@@ -154,6 +156,13 @@ int main()
 		_exit(1);
 	}
 
+	int version = -1;
+	rc = ioctl(fd, EVIOCGVERSION, &version);
+	int const major_version = ((version >> 16) & 0xff);
+	int const minor_version = ((version >>  8) & 0xff);
+	int const patch_version = ((version >>  0) & 0xff);
+	fprintf(stdout, "driver-version: %d.%d.%d\n", major_version, minor_version, patch_version);
+
 	struct input_id iid = {};
 	rc = ioctl(fd, EVIOCGID, &iid);
 	if (-1 == rc) {
@@ -163,6 +172,35 @@ int main()
 		}
 		free(devname_gamepad);
 		_exit(1);
+	}
+
+	struct input_event ev = {};
+	while (1) {
+		rc = read(fd, &ev, sizeof(ev));
+		if (-1 == rc) {
+			fprintf(stderr, "%s\n", "error: failed to read event");
+			if (errno) {
+				fprintf(stderr, "%s\n", strerror(errno));
+			}
+			free(devname_gamepad);
+			_exit(1);
+		}
+		int64_t code = ev.code;
+		int64_t type = ev.type;
+		int64_t value = ev.value;
+		if ((type & EV_ABS) == EV_ABS) {
+			fprintf(stdout, "AXIS: type: 0x%lx code: 0x%lx value: 0x%lx\n", type, code, value);
+		}
+		else if ((type & EV_KEY) == EV_KEY) {
+			fprintf(stdout, "BUTTON: type: 0x%lx code: 0x%lx value: 0x%lx\n", type, code, value);
+		}
+		else {
+			fprintf(stdout, "OTHER: type: 0x%lx code: 0x%lx value: 0x%lx\n", type, code, value);
+		}
+		if (BTN_MODE == code) {
+			fprintf(stdout, "%s\n", "quitting upon user request");
+			break;
+		}
 	}
 
 	free(devname_gamepad);
