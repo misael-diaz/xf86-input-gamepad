@@ -71,7 +71,7 @@ gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -O0 -gdwarf-4 -g main.c -o ga
 
 ## Linux Kernel Reference
 
-A quick reference of the macros defined by the Linux kernel that are relevant for the development of this driver.
+A quick reference of the macros defined by the Linux kernel that are relevant for the development of this driver. The links provided below are for the the 5.4 version of the kernel.
 
 ### Bit Operations
 
