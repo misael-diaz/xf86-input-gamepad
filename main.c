@@ -1,4 +1,4 @@
-#include <linux/joystick.h>
+#include <linux/input.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -50,6 +50,37 @@ struct _KeybdCtrl {
 	KeybdCtrl ctrl;
 };
 
+// TODO: impl Core functions
+_X_EXPORT struct _InputDriverRec GAMEPAD = {
+    1,
+    "gamepad",
+    NULL,
+    NULL,//GamepadCorePreInit,
+    NULL,//GamepadCoreUnInit,
+    NULL,
+    NULL,
+#ifdef XI86_DRV_CAP_SERVER_FD
+    XI86_DRV_CAP_SERVER_FD
+#endif
+};
+
+// the pointer type is defined as typedef void* pointer in /usr/include/X11/Xdefs.h
+static void *GamepadDriverPlug(
+	void *module,
+	void *options,
+	int *errmaj,
+	int *errmin
+) {
+    xf86AddInputDriver(&GAMEPAD, module, 0);
+    return module;
+}
+
+static void GamepadDriverUnplug(void *p)
+{
+	return;
+}
+
+
 static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	"gamepad",
 	MODULEVENDORSTRING,
@@ -63,6 +94,12 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	ABI_XINPUT_VERSION,
 	MOD_CLASS_XINPUT,
 	{},
+};
+
+_X_EXPORT XF86ModuleData GamepadModuleData = {
+    &ModuleVersionGamepad,
+    GamepadDriverPlug,
+    GamepadDriverUnplug
 };
 
 int IsEventDevice(struct dirent const *dir)
