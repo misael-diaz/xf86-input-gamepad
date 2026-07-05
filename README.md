@@ -100,3 +100,41 @@ From the Linux Kernel source tree [`include/uapi/linux/kernel.h`](https://github
 ```c
 #define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 ```
+
+## X11 Reference
+
+`XF86ModuleVersionInfo` data strucutre is defined in `xserver/hw/xfree86/common/xf86Module.h`
+
+From the xserver source tree `xserver/include/input.h`:
+
+```c
+typedef struct _DeviceIntRec *DeviceIntPtr;
+```
+
+where `struct _DeviceIntRec` is defined in `xserver/include/inputstr.h` (not shown here for brevity).
+
+
+`struct _XkbSrvInfo` is defined in `xserver/include/xkbsrv.h`.
+
+`struct _XkbControls` is defined in `xserver/include/xkbstr.h`.
+
+The function `InitKeyboardDeviceStruct()` is defined in `xkb/xkbInit.c`.
+
+`xserver/include/input.h` defines:
+
+```c
+typedef struct {
+    int click, bell, bell_pitch, bell_duration;
+    Bool autoRepeat;
+    unsigned char autoRepeats[32];
+    Leds leds;
+    unsigned char id;
+} KeybdCtrl;
+```
+
+and
+
+```c
+typedef void (*KbdCtrlProcPtr) (DeviceIntPtr /*device */ ,
+                                KeybdCtrl * /*ctrl */ );
+```
