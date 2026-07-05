@@ -75,7 +75,7 @@ struct _GamepadDevRec {
 	GamepadOpen open;
 	GamepadClose close;
 	GamepadRead read;
-	char *device;
+	char *devname; // devname = "/dev/input/eventX"
 	struct _InputInfoRec *gamepad;
 	struct _InputInfoRec *keyboard;
 	struct _XkbRMLVOSet *options;
