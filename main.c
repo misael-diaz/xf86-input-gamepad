@@ -69,7 +69,7 @@ typedef int (*GamepadRead)(
 	int *number
 );
 
-// RMLVO: Rules Model Layout Variant Options
+// KbRMLVO: Keyboard Rules Model Layout Variant Options
 struct _GamepadDevRec {
 	int fd;
 	GamepadOpen open;
@@ -78,7 +78,7 @@ struct _GamepadDevRec {
 	char *device;
 	struct _InputInfoRec *gamepad;
 	struct _InputInfoRec *keyboard;
-	struct _XkbRMLVOSet *rmlvo;
+	struct _XkbRMLVOSet *options;
 	uint8_t btno;
 	uint8_t axno;
 	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
