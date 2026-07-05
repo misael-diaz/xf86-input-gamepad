@@ -50,6 +50,49 @@ struct _KeybdCtrl {
 	KeybdCtrl ctrl;
 };
 
+enum _GAMEPADEVENT {
+    EVENT_NONE,
+    EVENT_BUTTON,
+    EVENT_AXIS
+};
+
+typedef int (*GamepadOpen)(
+	struct _GamepadDevRec *gamepad,
+	Bool probe
+);
+
+typedef void (*GamepadClose)(struct _GamepadDevRec *gamepad);
+
+typedef int (*GamepadRead)(
+	struct _GamepadDevRec *gamepad,
+	enum _GAMEPADEVENT *event,
+	int *number
+);
+
+// RMLVO: Rules Model Layout Variant Options
+struct _GamepadDevRec {
+	int fd;
+	GamepadOpen open;
+	GamepadClose close;
+	GamepadRead read;
+	char *device;
+	struct _InputInfoRec *gamepad;
+	struct _InputInfoRec *keyboard;
+	struct _XkbRMLVOSet *rmlvo;
+	uint8_t btno;
+	uint8_t axno;
+	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
+};
+
+static int GamepadCorePreInit(
+	struct _InputDriverRec *driver,
+	struct _InputInfoRec *info,
+	int flags
+) {
+	struct _InputDriverRec *KeyboardDevice = NULL;
+	return 0;
+}
+
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
     1,
