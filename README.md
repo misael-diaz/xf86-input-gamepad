@@ -138,3 +138,9 @@ and
 typedef void (*KbdCtrlProcPtr) (DeviceIntPtr /*device */ ,
                                 KeybdCtrl * /*ctrl */ );
 ```
+
+gdb can help find the aliases of types more quickly:
+
+```gdb
+info types
+```
