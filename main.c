@@ -11,9 +11,23 @@
 #include <string.h>
 #include <errno.h>
 
+// NOTE: borrowed this macro function from /usr/include/xorg/xorgVersion.h, I am assuming that the freedesktop developers left this to inform the next developers about their versioning logic
+#define __XORG_VERSION_NUMERIC(major,minor,patch,snap,dummy) \
+        (((major) * 10000000) + ((minor) * 100000) + ((patch) * 1000) + snap)
+
+// NOTE: had to run Xorg -version on the console to find the current version
+#define XORG_VERSION_CURRENT __XORG_VERSION_NUMERIC(1, 20, 13, 0, 0)
+
 #include <xorg/xf86.h>
 #include <xorg/xf86Xinput.h>
+#include <xorg/xf86Module.h>
+#include <xorg/xf86Modes.h>
 #include <xorg/xf86Opt.h>
+#include <xorg/xkbsrv.h>
+
+#define PACKAGE_VERSION_MAJOR 1
+#define PACKAGE_VERSION_MINOR 0
+#define PACKAGE_VERSION_PATCHLEVEL 0
 
 // REFS:
 // https://github.com/torvalds/linux/tree/master/Documentation/input/event-codes.rst
@@ -31,6 +45,25 @@ _Static_assert(sizeof(int64_t) == 8);
 #define OFF(x) ((x) & 63)
 #define LONG(x) ((x) >> 6)
 #define test_bit(bit, array) (((array[LONG(bit)] >> OFF(bit))) & 1)
+
+struct _KeybdCtrl {
+	KeybdCtrl ctrl;
+};
+
+static XF86ModuleVersionInfo ModuleVersionGamepad = {
+	"gamepad",
+	MODULEVENDORSTRING,
+	MODINFOSTRING1,
+	MODINFOSTRING2,
+	XORG_VERSION_CURRENT,
+	PACKAGE_VERSION_MAJOR,
+	PACKAGE_VERSION_MINOR,
+	PACKAGE_VERSION_PATCHLEVEL,
+	ABI_CLASS_XINPUT,
+	ABI_XINPUT_VERSION,
+	MOD_CLASS_XINPUT,
+	{},
+};
 
 int IsEventDevice(struct dirent const *dir)
 {
