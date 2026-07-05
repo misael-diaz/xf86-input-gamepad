@@ -177,6 +177,27 @@ char *GetGamePadDeviceName(void)
 	return gamepad;
 }
 
+static void GamepadKbdCtrl(
+	struct _DeviceIntRec *DevGamepad,
+	KeybdCtrl *ctrl
+) {
+	struct _KeybdCtrl *p = (typeof(p)) ctrl;
+	return;
+}
+
+// TODO: void *priv_gamepad -> struct _GamepadDev *priv_gamepad, you must define `struct _GamepadDev` yourself based on xf86-input-joystick's `jstk.h`
+static int GamepadInitKeys(
+	struct _DeviceIntRec *DevGamepad,
+	void *PrivDevGamepad
+) {
+	int rc = 0;
+	struct _XkbSrvInfo *info = NULL;
+	struct _XkbControls ctrls = {};
+	rc = InitKeyboardDeviceStruct(DevGamepad, NULL, NULL, GamepadKbdCtrl);
+	return 0;
+}
+
+/*
 int main()
 {
 	int64_t rc = 0;
@@ -324,8 +345,13 @@ int main()
 	free(devname_gamepad);
 	return 0;
 }
+*/
+
+
+
 /*
-{
+int main()
+   {
 	errno = 0;
 	struct js_event ev = {};
 	int fd = open("/dev/input/js0", O_RDONLY);
