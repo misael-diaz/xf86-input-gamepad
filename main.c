@@ -93,6 +93,163 @@ static int GamepadCorePreInit(
 	return 0;
 }
 
+// TODO:
+// from the xf86-input-joystick we know that the we have to impl GamepadKeyboardDeviceControlProc() function to handle the different levels of operation: DEVICE_INIT, DEVICE_ON, DEVICE_OFF, and DEVICE_CLOSE
+//
+// DEVICE_INIT is the most critical one to have a functional driver (not that the other modes are not important but are trivial to implement in comparison). First we have to intialize focus for the device and then initialize the keys. However from reading at the impl of InitKeyboardDeviceStruct it calls InitFocusClassDeviceStruct() if dev->focus is NULL. Need to understand if initializing focus ahead is a requirement for our driver or if we can simply let the InitKeyboardDeviceStruct() handle this to simplify our end if the effect is the same. So the question I need to answer is if order is crucial here.
+//
+// InitFocusDeviceStruct is device-independent (a dix) and so it is implemented in xserver/dix/devices.c.
+//
+// InitFocusClassDeviceStruct() requires a device so (dev cannot be NULL)  it gets a pointer to the root window, the current time, and binds the focus to the device after allocating it. I think it's safe to let InitKeyboardDeviceStruct() call this for us. Why I think this way because the xserver is a huge codebase that has changed over many years and there are about 20 years between what I see in this code and the current state of the xserver. And so I find it worthwhile to try to let InitKeyboardDeviceStruct() initialize the device focus (dev->focus). Most importantly initializing the device focus must happen only once; the impl checks for that.
+//
+//
+// Find out how they set the joystick->device (string) and this is important to know because what you are doing is searching for a gamepad in /dev/input and I want to know what they do instead. Do they use /dev/input/js0? probably but what if there are other joysticks?
+
+// TRACE:
+// jstkDeviceControlProc() calls jstkOpenDevice() on initialization and jstkOpenDevice calls priv->open_proc which is the open function according to the backend (evdev, /dev/input/js0, or BSD). But interestingly this happens if probe is False. Nevertheless jstkOpenDevice() function either calls the priv->open_proc or the backend which are the same. If probe is false then no call xf86Msg() (a logger) is done. This means the following:
+//
+// device (name of the joystick device must be known then)
+// if the file descriptor data member is not set it's set by this call along with the open, close, and read function pointers.
+//
+// It seems that jstkCorePreInit is the one function that sets the device name `device`
+// That functions tries first to set the device name via xf86SetStrOption() with string "Dvice" then fallsback to calling it with string "Path". If that fails the driver aborts.
+//
+// Diving into xf86, xf86SetStrOption() -> LookupStrOption() -> ParseOptionValue(scrnIndex= -1, options = optlist, OptionInfo p = &o, markUsed = True) -> xf86findOptionValue() -> xf86findOption()
+//
+// o.type = OPTV_STRING o.name = name (either "Device" or "Path")
+//
+// at the deepest level xf86findOption() does a case insensitive character comparison as it traverses the given option list (a linked-list and its type is XF86OptionPtr). 
+//
+// I verified that pInfo->options is of type XF86OptionPtr (of course it would not have compiled):
+//
+//typedef struct _XF86OptionRec {
+//    GenericListRec list;
+//    const char *opt_name;
+//    const char *opt_val;
+//    int opt_used;
+//    const char *opt_comment;
+//} XF86OptionRec;
+//
+//typedef struct _InputOption *XF86OptionPtr;
+//
+// and also found this which freedesktop developers strongly discourage the use of the generic list (a singly linked-list talk about tech debt it's use by xf86 at its core and they could not get rid of it)
+//
+//typedef struct generic_list_rec {
+//    void *next;
+//} GenericListRec, *GenericListPtr, *glp;
+//
+//
+// Nevertheless, the parser checks the returned string could be an empty string and if it is a debug warning message is logged (possibly to the console) about not having a valid string. And then it return False to indicate that it was not found. If we have a valid string then it will be equal to either "Device" or "Path" depending on the attempt that succeeds.
+//
+// noted that ParseOptionValue() returns as it names suggest the value that correspond to the option in this case it could be /dev/input/jsX or /dev/input/eventX
+//
+//
+// FINDING OUT WHAT LOADS OUR DRIVER
+//
+// dix_main() -> InitOutput -> ? -> xf86LoadModules() -> LoadModule()
+//
+// InitOutput() calls the following functions that I should read:
+//
+// - xf86ModulelistFromConfig()
+// - xf86DriverlistFromConfig()
+// - xf86InputDriverlistFromConfig()
+//
+// both of these functions return a (char**) modulelist
+//
+// an important discovery is the modreq module-requirements is optional so if you pass NULL the xserver won't complain about version or ABI compatibility.
+//
+//
+//
+// We probably want to look at InitInput() for input devices
+//
+// the important global is the `inputs` data member of (struct _serverlayoutrec) xf86ConfigLayout:
+//
+// typedef struct _serverlayoutrec {
+//     const char *id;
+//     screenLayoutPtr screens;
+//     GDevPtr inactives;
+//     InputInfoRec **inputs;
+//     void *options;
+// } serverLayoutRec, *serverLayoutPtr;
+//
+//
+// 
+//
+// There's a global configuration file which populates the (struct _serverlayoutrec) xf86ConfigLayout. This is done in xf86HandleConfigFile()
+//
+// Interestingly it is called by InitOutput() and InitOuput() is called before InitInput() in dix_main().
+//
+//
+// xf86HandleConfigFile() it is also called by DoConfigure()
+//
+// both functions set autoconfig to False
+//
+// xf86HandleConfigFile() checks for elevated privileges, if running as root it means that the root user started the xserver, otherwise it was a regular user that used sudo to elevate its privileges. In the latter case the xserver only allows a smaller set of paths to configure the server. The ALL_CONFIGPATH and ALL_CONFIGDIRPATH are defined in xf86Config.c.
+//
+// calls xf86initConfigFiles() which basically sets indexes to zero
+// xf86openConfigDirFiles(SYS_CONFIGDIRPATH, NULL, PROJECTROOT) both parameters are defined in the xf86Config.c source file.
+//
+// it calls many open functions but this one caught my attention:
+//
+// xf86openConfigFile() -> OpenConfigFile() to open the xorg config file and this is stored in the global variable (char*) xf86ConfigFile
+//
+// eventually xf86HandleConfigFile() calls xf86readConfigFile() and this is where the interesting things probably happen (implemented by the parser):
+// 
+//            else if (xf86nameCompare(xf86_lex_val.str, "inputclass") == 0) {
+//                free(xf86_lex_val.str);
+//                xf86_lex_val.str = NULL;
+//                HANDLE_LIST(conf_inputclass_lst,
+//                            xf86parseInputClassSection, XF86ConfInputClassPtr);
+//            }
+// 
+// where inputclass is the class for input devices.
+//
+// the macro fun:
+//
+//#define HANDLE_LIST(field,func,type)\
+//{\
+//type p = func ();\
+//if (p == NULL)\
+//{\
+//        CLEANUP (ptr);\
+//        return NULL;\
+//}\
+//else\
+//{\
+//        ptr->field = (type) xf86addListItem ((glp) ptr->field, (glp) p);\
+//}\
+//}
+//
+// NOTE conf_input_lst is tied to the global xf86configptr, if you look closely to the HANDLE_LIST() function macro you will see that it dereferences the pointer `ptr` and that pointer is allocated by xf86readConfigFile().
+//
+// calls xf86addListItem() and this as the name suggests add item to the list () conf_input_lst which is probably a data member of (XF86ConfigPtr) xf86configptr.
+//
+// This is the typedef that tells us the definition of xf86configptr:
+//
+//typedef struct {
+//    XF86ConfFilesPtr conf_files;
+//    XF86ConfModulePtr conf_modules;
+//    XF86ConfFlagsPtr conf_flags;
+//    XF86ConfVideoAdaptorPtr conf_videoadaptor_lst;
+//    XF86ConfModesPtr conf_modes_lst;
+//    XF86ConfMonitorPtr conf_monitor_lst;
+//    XF86ConfDevicePtr conf_device_lst;
+//    XF86ConfScreenPtr conf_screen_lst;
+//    XF86ConfInputPtr conf_input_lst;
+//    XF86ConfInputClassPtr conf_inputclass_lst;
+//    XF86ConfOutputClassPtr conf_outputclass_lst;
+//    XF86ConfLayoutPtr conf_layout_lst;
+//    XF86ConfVendorPtr conf_vendor_lst;
+//    XF86ConfDRIPtr conf_dri;
+//    XF86ConfExtensionsPtr conf_extensions;
+//    char *conf_comment;
+//} XF86ConfigRec, *XF86ConfigPtr;
+//
+//
+// evntually the xf86HandleConfigFile() checks the config files among other things:
+//
+// we are going to study configFiles() to see if we find somethig that gives us a clue here; not what I expected.
+
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
     1,
