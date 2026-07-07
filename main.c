@@ -184,6 +184,56 @@ static int GamepadCorePreInit(
 //
 // both functions set autoconfig to False
 //
+//
+//
+// xf86HandleConfigFile() call stack:
+//
+// - xf86initConfigFiles()
+// - xf86openConfigDirFiles() and xf86openConfigFile()
+//
+//
+// xf86openConfigFile() calls OpenConfigFile(path, cmdline, projroot, XCONFIGFILE)
+// where XCONFIGFILE apparently is defined in xorg-config.h when compiling it but if that's not available (because this was done by maintainer in most cases) you can look at the system header: /usr/include/xorg/xorg-server.h but you will have to install the development files for xorg to get it:
+//
+//
+// Location of configuration file
+// #define XCONFIGFILE "xorg.conf"
+//
+//
+// don't forget the xf86openConfigDirFiles() was called with path set to look in all the standard locations for the xorg configuration files in the system (this is a string of paths delimited by commas)
+//
+// this one xf86openConfigDirFiles() calls OpenConfigDir(path, cmdline, projroot, XCONFIGDIR)
+//
+// where XCONFIGDIR is probably /etc/X11/xorg.conf.d or maybe just `xorg.conf.d` unfortunately this is only known at build time but `xorg.conf.d` is a safebet.
+//
+//
+// In my system the DATADIR is set to `/usr/share/` (I deduced this from reading the source code and the meson.build files and by locating the file 10-quirks.conf and this led the solution)
+//
+// /usr/share/X11/xorg.conf.d/10-quirks.conf
+//
+// so /usr/share must be the DATADIR which is used when %D escape sequence is found in DoSubstitution()
+//
+// and `xorg.conf.d` must be the XCONFIGDIR which may be replaced when %X escape sequence is found, note that encoutering %X does not mean that it resolves to XCONFIGDIR it could also resolve to XCONFIGFILE because this is an argument of DoSubstitution()
+//
+//
+// After DoSubstitution() it returns a string, and if called by OpenConfigDir() the following happens:
+//
+// - calls scandir() to search for *.conf files (like the 10-quirks.conf file; you may want to look at the impl but it essentially uses a strcmp by looking at the bytes that correspond to the file extenstion or suffix .conf and that's how they do this without the need of regular expressions)
+// - if scandir() returns at least one matching .conf file the `dirpath` is added via AddConfigDirFiles(); however the AddConfigDirFiles() function appears to do more than just adding it because the caller checks the return value in anticipation that it could fail (probably because this function is used in other contexts where it is not known in advance)
+//
+//
+//
+// AddConfigDirFiles() interestingly opens all the .conf files in the config directory and keeps a record of them (both the path and FILE*) in `configFiles` struct (not a global in the sense that other source files can access it but it is in the global scope of scan.c)
+//
+//static struct {
+//    FILE *file;
+//    char *path;
+//} configFiles[CONFIG_MAX_FILES];
+//
+//
+// what OpenConfigDir() returns is the `dirpath` that hosts the .conf files. This is what xf86openConfigDirFiles() also returns to the caller. The result is stored in sysdirname and `dirname` of course these placeholders store different locations. I am certain that `sysdir` should resolve to /usr/share/X11/xorg.conf.d/ in my system.
+//
+//
 // xf86HandleConfigFile() checks for elevated privileges, if running as root it means that the root user started the xserver, otherwise it was a regular user that used sudo to elevate its privileges. In the latter case the xserver only allows a smaller set of paths to configure the server. The ALL_CONFIGPATH and ALL_CONFIGDIRPATH are defined in xf86Config.c.
 //
 // calls xf86initConfigFiles() which basically sets indexes to zero
@@ -191,7 +241,8 @@ static int GamepadCorePreInit(
 //
 // it calls many open functions but this one caught my attention:
 //
-// xf86openConfigFile() -> OpenConfigFile() to open the xorg config file and this is stored in the global variable (char*) xf86ConfigFile
+// xf86openConfigFile() -> OpenConfigFile() to open the xorg config file and this is stored in the global variable (char*) xf86ConfigFile. It's worth mentioning that as OpenConfigDir() the search stops on the first match and the search is hierarchical meaning that the firs paths is more important than those that follow. It is also important to know that the command-line searchpaths both absolute (%A) and relative (%R espcape sequence) take precedence over standard system locations such as /etc/X11/xorg.conf.
+//
 //
 // eventually xf86HandleConfigFile() calls xf86readConfigFile() and this is where the interesting things probably happen (implemented by the parser):
 // 
@@ -249,6 +300,31 @@ static int GamepadCorePreInit(
 // evntually the xf86HandleConfigFile() checks the config files among other things:
 //
 // we are going to study configFiles() to see if we find somethig that gives us a clue here; not what I expected.
+//
+//
+//
+// The most misleading name for a function macro (does not parse but allocates instead):
+//
+//#define parsePrologue(typeptr,typerec) typeptr ptr; \
+//if( (ptr=calloc(1,sizeof(typerec))) == NULL ) { return NULL; }
+//
+//
+//struct xorg_list {
+//   struct xorg_list *next, *prev;
+//};
+//
+//
+//static inline void
+//xorg_list_init(struct xorg_list *list)
+//{
+//    list->next = list->prev = list;
+//}
+//
+//
+//
+// Understand getToken to understand how inputclass configs are parsed (impl in parser/scan.c)
+
+
 
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
