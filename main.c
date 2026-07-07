@@ -244,7 +244,24 @@ static int GamepadCorePreInit(
 // xf86openConfigFile() -> OpenConfigFile() to open the xorg config file and this is stored in the global variable (char*) xf86ConfigFile. It's worth mentioning that as OpenConfigDir() the search stops on the first match and the search is hierarchical meaning that the firs paths is more important than those that follow. It is also important to know that the command-line searchpaths both absolute (%A) and relative (%R espcape sequence) take precedence over standard system locations such as /etc/X11/xorg.conf.
 //
 //
-// eventually xf86HandleConfigFile() calls xf86readConfigFile() and this is where the interesting things probably happen (implemented by the parser):
+// eventually xf86HandleConfigFile() calls xf86readConfigFile().
+//
+// xf86readConfigFile() starts by processing tokens, and to the best of my understanding, a token could be an entire line (for example even a comment in the config file for these are stored in the server). This work is done by the function xf86getToken()
+//
+// xf86getToken() returns an enum to indicate what the token is and there are many. At least in the context of readConfigFile we are looking for the SECTION token. And this means that the COMMENT section of the config files *.conf is stored until we hit the SECTION. And this were I still have work to do.
+//
+// It is important to bear in mind that xf86getToken() returns numbers right away but there is reading to do because there's more to just returning early. In fact as soon as a token is identified it is returned. We know that the caller expects to process the comment section and then the section SECTION (example "inputclass").
+//
+// It is also important to know that as xf86getToken() is called the config files are read. These are all the config files that we found earlier either at the standard or commad-line specified paths.
+//
+// constrary to my expectation xf86addComment() function appends the comments to a string which gets reallocated as more space is needed. If you were to print this string on the console it would look like the comments in the .conf file but without leading whitespace.
+//
+// at the level of xf86readConfigFile() the tokens can be COMMENT or SECTION otherwise it generates a parsing error message. So what happens is that if the token itself could be a single word as well and this happens when it's not a COMMENT or STRING or a NUMBER.
+//
+// Ok so when you find the word Section it returns SECTION and then it needs to check if the word Section is followed by a string (example Section "inputclass"). If it's not followed by a string literally it checks for "\"" then there is a parse error. And this check is necessary to know if it makes sense to continue processing the .conf file. There might be more to just this but at least this is who they implemented this check.
+//
+//
+// This is where the interesting things probably happen (implemented by the parser) in xf86readConfigFile() but have yet to read the code in between.
 // 
 //            else if (xf86nameCompare(xf86_lex_val.str, "inputclass") == 0) {
 //                free(xf86_lex_val.str);
@@ -297,6 +314,12 @@ static int GamepadCorePreInit(
 //} XF86ConfigRec, *XF86ConfigPtr;
 //
 //
+// finally we have reached the point where we will know what the xserver does with inputclass devices.
+//
+// xf86parseInputClassSection():
+//
+//
+// WHAT FOLLOWS NEEDS TO BE MERGED WITH WHAT I WROTE ABOVE
 // evntually the xf86HandleConfigFile() checks the config files among other things:
 //
 // we are going to study configFiles() to see if we find somethig that gives us a clue here; not what I expected.
@@ -319,6 +342,8 @@ static int GamepadCorePreInit(
 //{
 //    list->next = list->prev = list;
 //}
+//
+// this just sets the lits to empty lists
 //
 //
 //
