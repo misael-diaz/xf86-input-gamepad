@@ -316,7 +316,11 @@ static int GamepadCorePreInit(
 //
 // finally we have reached the point where we will know what the xserver does with inputclass devices.
 //
-// xf86parseInputClassSection():
+// xf86parseInputClassSection(): in this section the xserver populates the conf_inputclass_lst and returns it to the caller.
+//
+//
+// TODO
+// Read the code again to see if it sets `xf86ConfigLayout.inputs` because it is needed when checking the count of input-drivers. Note that the "inputclass" registers a driver and so it should be in the list unless I am missing the mark here.
 //
 //
 // WHAT FOLLOWS NEEDS TO BE MERGED WITH WHAT I WROTE ABOVE
