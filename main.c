@@ -322,6 +322,8 @@ static int GamepadCorePreInit(
 // TODO
 // Read the code again to see if it sets `xf86ConfigLayout.inputs` because it is needed when checking the count of input-drivers. Note that the "inputclass" registers a driver and so it should be in the list unless I am missing the mark here.
 //
+// I did not get to read any specifics. I did see that the xserver checks for the keyboard and pointer and if not configured (properly) the xserver might not find any. You are encouraged to read checkCoreInputDevices() because this is where these checks are done.
+//
 //
 // WHAT FOLLOWS NEEDS TO BE MERGED WITH WHAT I WROTE ABOVE
 // evntually the xf86HandleConfigFile() checks the config files among other things:
@@ -350,10 +352,50 @@ static int GamepadCorePreInit(
 // this just sets the lits to empty lists
 //
 //
-//
+// TODO write about getToken since you have read the source code.
 // Understand getToken to understand how inputclass configs are parsed (impl in parser/scan.c)
+//
+//
+// ABI
+//
+// The xserver can ignore ABI mismatches if configured to do this via:
+//
+// xf86Info.ignoreABI
+//
+// if you get into trouble you know you may try to tell the xserver to ignore it. This is checked in the InitOutput() function, however if needed I would have to find where this flag is set. Probably via command-line and so you need to read the man pages for the xserver probably or xinit or another tool that starts the xserver.
+//
+// LoaderSetPath() overrides the default module path and so you know that you can probably override that via command line. This is done in InitOutput() function.
+//
+//
+//
+// xf86ModulelistFromConfig(void ***optlist) -> modulelist (char **) loads configuration modules `conf_modules` for example it replaces the obsolete keyboard with kbd (linux) driver
+//
+// the caller function does pass &optlst where optlst is (void **) and so optlst is set by this function call
 
-
+//
+// xf86InputDriverlistFromConfig()
+//
+// this function checks the (InputInfoRec **inputs) `inputs` field of (struct _serverlayoutrec or serverLayoutRec) xf86ConfigLayout and simply copies the driver names into the (char **) modulearray.
+//
+// So here is where my Gamepad driver would be marked as a module.
+//
+// Then, xf86LoadModules would be called this way xf86LoadModules(modulelist, NULL) without an optlist because it's NULL. Because of this the function calls LoadModule(name, NULL, NULL, &errmaj), where (char *) `name` is the normalized name (maybe lowercase would have to read xf86NormalizeName())
+//
+// so it boils down to what LoadModule does:
+//
+// checks the module name, even though it would accept a filename (non-canonical), it expects a simple name or a fullpath name.
+//
+// These are the standard patterns in linux:
+// {"^lib(.*)\\.so$",},
+// {"(.*)_drv\\.so$",},
+// {"(.*)\\.so$",},
+//
+// the driver sample provides a noncanonical name and that's okay because eventually the xserver searches for the module by doing a simple string comparison for any of the standard patterns. For example, if driver name is "gamepad" the module must be "gamepad.so" or gam"gamepad_drv.so" or "libgamepad.so". This work is done by FindModule(). Eventually the function calls LoaderOpen() which returns a a void* to the driver handle (*.so file).
+//
+//
+//
+//
+//
 
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
@@ -401,6 +443,15 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	{},
 };
 
+// NOTE: LoaderSymbolFromModule() maybe expects the symbol to be gamepadModuleData;
+//       if it fails you know that you must use `gamepadModuleData` instead.
+// 
+// at the moment you have:
+//
+// nm gamepad.so | grep -i moduledata
+// 0000000000004150 D GamepadModuleData
+//
+// This is why it's important to read the xserver source code so that you can catch subtle errors.
 _X_EXPORT XF86ModuleData GamepadModuleData = {
     &ModuleVersionGamepad,
     GamepadDriverPlug,
