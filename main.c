@@ -97,15 +97,15 @@ static int GamepadCorePreInit(
 
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
-    1,
-    "gamepad",
-    NULL,
-    NULL,//GamepadCorePreInit,
-    NULL,//GamepadCoreUnInit,
-    NULL,
-    NULL,
+    .driverVersion = 1,
+    .driverName = "gamepad",
+    .Identify = NULL,
+    .PreInit = NULL,
+    .UnInit = NULL,
+    .module = NULL,
+    .default_options = NULL,
 #ifdef XI86_DRV_CAP_SERVER_FD
-    0
+    .capabilities = 0
 #endif
 };
 
@@ -126,24 +126,24 @@ static void GamepadDriverUnplug(void *p)
 }
 
 static XF86ModuleVersionInfo ModuleVersionGamepad = {
-	"gamepad",
-	MODULEVENDORSTRING,
-	MODINFOSTRING1,
-	MODINFOSTRING2,
-	XORG_VERSION_CURRENT,
-	PACKAGE_VERSION_MAJOR,
-	PACKAGE_VERSION_MINOR,
-	PACKAGE_VERSION_PATCHLEVEL,
-	ABI_CLASS_XINPUT,
-	ABI_XINPUT_VERSION,
-	MOD_CLASS_XINPUT,
-	{},
+	.modname = "gamepad",
+	.vendor = MODULEVENDORSTRING,
+	._modinfo1_ = MODINFOSTRING1,
+	._modinfo2_ = MODINFOSTRING2,
+	.xf86version = XORG_VERSION_CURRENT,
+	.majorversion = PACKAGE_VERSION_MAJOR,
+	.minorversion = PACKAGE_VERSION_MINOR,
+	.patchlevel = PACKAGE_VERSION_PATCHLEVEL,
+	.abiclass = ABI_CLASS_XINPUT,
+	.abiversion = ABI_XINPUT_VERSION,
+	.moduleclass = MOD_CLASS_XINPUT,
+	.checksum = {}
 };
 
 _X_EXPORT XF86ModuleData gamepadModuleData = {
-    &ModuleVersionGamepad,
-    GamepadDriverPlug,
-    GamepadDriverUnplug
+    .vers = &ModuleVersionGamepad,
+    .setup = GamepadDriverPlug,
+    .teardown = GamepadDriverUnplug
 };
 
 int IsEventDevice(struct dirent const *dir)
