@@ -492,92 +492,6 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	{},
 };
 
-//{
-// NOTE: LoaderSymbolFromModule() maybe expects the symbol to be gamepadModuleData;
-//       if it fails you know that you must use `gamepadModuleData` instead.
-// 
-// at the moment you have:
-//
-// nm gamepad.so | grep -i moduledata
-// 0000000000004150 D GamepadModuleData
-//
-// from the module data it will check the versions and binds the DriverPlug and DriverUnplug functions, set the TearDownData and the VersionInfo.
-//
-// This is where the xserver calls the `SetupProc` function (in this case DriverPlug) to set the `TearDownData`, see the struct definition:
-//
-//typedef struct module_desc {
-//    struct module_desc *child;
-//    struct module_desc *sib;
-//    struct module_desc *parent;
-//    void *handle;
-//    ModuleSetupProc SetupProc;
-//    ModuleTearDownProc TearDownProc;
-//    void *TearDownData;
-//    const XF86ModuleVersionInfo *VersionInfo;
-//} ModuleDesc, *ModuleDescPtr;
-//
-//
-// Interestingly the SetupProc for the joystick driver simply returns the pointer to the struct module_desc (first input argument).
-//
-//
-// xf86NewInputDevice() calls PreInit
-//
-// NewInputDeviceRequest() calls xf86NewInputDevice()
-// also xf86InputEnableVTProbe calls xf86NewInputDevice()
-//
-// InitInput() -> NewInputDeviceRequest() -> xf86NewInputDevice()
-//
-// So this means that the device Plugin procedure function is probably called before the PreInit procedure function. The Plugin adds the driver
-//
-//
-//
-// Ok so reading the joystick driver again and noticed the following:
-//
-// It looks (as the author mentioned) that the PreInit procedure is run more than once. The first time it is run the PreInit code sets `device_control` and `read_input` function pointers and a couple of things. Then the hotplug function jstkKeyboardHotPlug() function is called. That's when the "_source", "_device/joystick" key-value pair option is set. And so when PreInit runs a second time it checks for that option to call jstkKeyboardPreInit() function. The hotplug procedure returns a keyboard_device.
-//
-//
-// NewInputDeviceRequest():
-//
-// - allocates InputInfoPtr `pInfo` and initializes its fd = -1 and name = "UNKNOWN"
-// - checks for the following options: "driver", "name" or "identifier", and "_source" among other possibilities but only listing the one that the joystick driver defines; if any of these options are missing NewInputDeviceRequest() fails.
-// - because NewInputDeviceRequest() merges the attributes it makes sense to create a duplicate to pass to this function (this function has the side effect of destroying some of the attributes when merging and so the more reason for duplicating them)
-// - checks if the inputclass should be ignored by traversing the XF86ConfInputClassPtr, it does not seem to me that this would trigger
-// - checks that `name` and `driver` have been defined in `pInfo` and this is where the loop needs to be closed (meaning you should be able to answer this based on what you read).
-// - then it calls xf86NewInputDevice()
-//
-// xf86NewInputDevice():
-//
-// - loads the driver by calling xf86LoadInputDriver()
-// - it checks if the driver has a PreInit procedure (returns BadImplementation if not)
-// - it checks for the device path in the "Device" option and this is done before calling the PreInit procedure
-// - maybe I have found a BUG in the xserver invalid free() call if path is not set. And indeed if "Device" is not set path would be NULL. I wrote a simple test program that checks if trying to free(NULL) crashes the program but it did not (checked with valgrind also for memory errors and none were detected). So to my relief it is OK if "Device" is not set so that we can do that during PreInit. In fact we have to do that in PreInit. It is important to know what does the xserver need to know to determine if it is to manage the device file descriptor fd. Thus check for the flag XI86_SERVER_FD because your driver would be the one managing the file descriptor maybe. Have found that if the capabilities is set to XI86_DRV_CAP_SERVER_FD then that means that the server manages the file descriptor. Nothing else enables this flag.
-// - deep in the callstack the it reports about core events in xf86ProcessCommonOptions() this is where "Floating" option in .conf appears and so you need to know what it means to send core events or not.
-//
-//
-//
-// xf86LoadInputDriver()
-//
-// - calls xf86LookupInputDriver() -- a simple lookup algorithm for the input-driver
-//
-// from InitInput() we see both `driver` and `name` are already set
-//
-//    for (pInfo = xf86ConfigLayout.inputs; pInfo && *pInfo; pInfo++) {
-//        (*pInfo)->options =
-//            xf86AddNewOption((*pInfo)->options, "driver", (*pInfo)->driver);
-//        (*pInfo)->options =
-//            xf86AddNewOption((*pInfo)->options, "identifier", (*pInfo)->name);
-//        if (NewInputDeviceRequest((*pInfo)->options, NULL, &dev) == BadAlloc)
-//            break;
-//    }
-//
-// and we see that probably this is the first time the driver code starts being processed by the xserver due to the NewInputDeviceRequest() call.
-//
-// NOTES about xf86optionListMerge()
-//
-// to understand this function you must bear in mind that `ap` stands for the previous element of the list `a`, and similarly `bp` stands for the previous element of list `b`. If the `a` list runs out of elements it rewinds in some sense until the other list is fully traversed and checked for duplicate options. Priority is given to the inputclass options (the `a` list). It's useful to draw diagrams of the two lists as the algorithm does its job to not miss a thing of what the algorithm does (this is understanding by first principles).
-//
-// This is why it's important to read the xserver source code so that you can catch subtle errors.
-//}
 _X_EXPORT XF86ModuleData GamepadModuleData = {
     &ModuleVersionGamepad,
     GamepadDriverPlug,
@@ -865,3 +779,89 @@ int main()
 	return 0;
 }
 */
+
+
+// NOTE: LoaderSymbolFromModule() maybe expects the symbol to be gamepadModuleData;
+//       if it fails you know that you must use `gamepadModuleData` instead.
+//
+// at the moment you have:
+//
+// nm gamepad.so | grep -i moduledata
+// 0000000000004150 D GamepadModuleData
+//
+// from the module data it will check the versions and binds the DriverPlug and DriverUnplug functions, set the TearDownData and the VersionInfo.
+//
+// This is where the xserver calls the `SetupProc` function (in this case DriverPlug) to set the `TearDownData`, see the struct definition:
+//
+//typedef struct module_desc {
+//    struct module_desc *child;
+//    struct module_desc *sib;
+//    struct module_desc *parent;
+//    void *handle;
+//    ModuleSetupProc SetupProc;
+//    ModuleTearDownProc TearDownProc;
+//    void *TearDownData;
+//    const XF86ModuleVersionInfo *VersionInfo;
+//} ModuleDesc, *ModuleDescPtr;
+//
+//
+// Interestingly the SetupProc for the joystick driver simply returns the pointer to the struct module_desc (first input argument).
+//
+//
+// xf86NewInputDevice() calls PreInit
+//
+// NewInputDeviceRequest() calls xf86NewInputDevice()
+// also xf86InputEnableVTProbe calls xf86NewInputDevice()
+//
+// InitInput() -> NewInputDeviceRequest() -> xf86NewInputDevice()
+//
+// So this means that the device Plugin procedure function is probably called before the PreInit procedure function. The Plugin adds the driver
+//
+//
+//
+// Ok so reading the joystick driver again and noticed the following:
+//
+// It looks (as the author mentioned) that the PreInit procedure is run more than once. The first time it is run the PreInit code sets `device_control` and `read_input` function pointers and a couple of things. Then the hotplug function jstkKeyboardHotPlug() function is called. That's when the "_source", "_device/joystick" key-value pair option is set. And so when PreInit runs a second time it checks for that option to call jstkKeyboardPreInit() function. The hotplug procedure returns a keyboard_device.
+//
+//
+// NewInputDeviceRequest():
+//
+// - allocates InputInfoPtr `pInfo` and initializes its fd = -1 and name = "UNKNOWN"
+// - checks for the following options: "driver", "name" or "identifier", and "_source" among other possibilities but only listing the one that the joystick driver defines; if any of these options are missing NewInputDeviceRequest() fails.
+// - because NewInputDeviceRequest() merges the attributes it makes sense to create a duplicate to pass to this function (this function has the side effect of destroying some of the attributes when merging and so the more reason for duplicating them)
+// - checks if the inputclass should be ignored by traversing the XF86ConfInputClassPtr, it does not seem to me that this would trigger
+// - checks that `name` and `driver` have been defined in `pInfo` and this is where the loop needs to be closed (meaning you should be able to answer this based on what you read).
+// - then it calls xf86NewInputDevice()
+//
+// xf86NewInputDevice():
+//
+// - loads the driver by calling xf86LoadInputDriver()
+// - it checks if the driver has a PreInit procedure (returns BadImplementation if not)
+// - it checks for the device path in the "Device" option and this is done before calling the PreInit procedure
+// - maybe I have found a BUG in the xserver invalid free() call if path is not set. And indeed if "Device" is not set path would be NULL. I wrote a simple test program that checks if trying to free(NULL) crashes the program but it did not (checked with valgrind also for memory errors and none were detected). So to my relief it is OK if "Device" is not set so that we can do that during PreInit. In fact we have to do that in PreInit. It is important to know what does the xserver need to know to determine if it is to manage the device file descriptor fd. Thus check for the flag XI86_SERVER_FD because your driver would be the one managing the file descriptor maybe. Have found that if the capabilities is set to XI86_DRV_CAP_SERVER_FD then that means that the server manages the file descriptor. Nothing else enables this flag.
+// - deep in the callstack the it reports about core events in xf86ProcessCommonOptions() this is where "Floating" option in .conf appears and so you need to know what it means to send core events or not.
+//
+//
+//
+// xf86LoadInputDriver()
+//
+// - calls xf86LookupInputDriver() -- a simple lookup algorithm for the input-driver
+//
+// from InitInput() we see both `driver` and `name` are already set
+//
+//    for (pInfo = xf86ConfigLayout.inputs; pInfo && *pInfo; pInfo++) {
+//        (*pInfo)->options =
+//            xf86AddNewOption((*pInfo)->options, "driver", (*pInfo)->driver);
+//        (*pInfo)->options =
+//            xf86AddNewOption((*pInfo)->options, "identifier", (*pInfo)->name);
+//        if (NewInputDeviceRequest((*pInfo)->options, NULL, &dev) == BadAlloc)
+//            break;
+//    }
+//
+// and we see that probably this is the first time the driver code starts being processed by the xserver due to the NewInputDeviceRequest() call.
+//
+// NOTES about xf86optionListMerge()
+//
+// to understand this function you must bear in mind that `ap` stands for the previous element of the list `a`, and similarly `bp` stands for the previous element of list `b`. If the `a` list runs out of elements it rewinds in some sense until the other list is fully traversed and checked for duplicate options. Priority is given to the inputclass options (the `a` list). It's useful to draw diagrams of the two lists as the algorithm does its job to not miss a thing of what the algorithm does (this is understanding by first principles).
+//
+// This is why it's important to read the xserver source code so that you can catch subtle errors.
