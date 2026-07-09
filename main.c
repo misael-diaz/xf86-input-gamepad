@@ -93,7 +93,6 @@ static int GamepadCorePreInit(
 	return 0;
 }
 
-
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
     1,
@@ -123,7 +122,6 @@ static void GamepadDriverUnplug(void *p)
 {
 	return;
 }
-
 
 static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	"gamepad",
