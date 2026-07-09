@@ -105,7 +105,7 @@ _X_EXPORT struct _InputDriverRec GAMEPAD = {
     NULL,
     NULL,
 #ifdef XI86_DRV_CAP_SERVER_FD
-    XI86_DRV_CAP_SERVER_FD
+    0
 #endif
 };
 
