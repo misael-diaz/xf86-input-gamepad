@@ -34,6 +34,7 @@
 // https://github.com/torvalds/linux/tree/master/Documentation/input/gamepad.rst
 // https://gitlab.freedesktop.org/libevdev/evtest
 // https://gitlab.freedesktop.org/xorg/xserver
+// https://gitlab.freedesktop.org/xorg/driver/xf86-input-joystick
 
 // NOTE: this way we know the lowerbounds of the strings that we concatenate into
 _Static_assert(sizeof(struct dirent) > 256);
