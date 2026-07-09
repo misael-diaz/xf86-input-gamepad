@@ -140,7 +140,7 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	{},
 };
 
-_X_EXPORT XF86ModuleData GamepadModuleData = {
+_X_EXPORT XF86ModuleData gamepadModuleData = {
     &ModuleVersionGamepad,
     GamepadDriverPlug,
     GamepadDriverUnplug
