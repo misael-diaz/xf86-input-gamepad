@@ -61,8 +61,10 @@ newgrp input
 
 ## Build
 
+The following command builds the driver as a shared object (\*.so) that the xserver can load:
+
 ```sh
-gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -O0 -gdwarf-4 -g main.c -o gamepad.bin
+gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -fPIC -shared -O0 -gdwarf-4 -g main.c -o gamepad.so
 ```
 
 ## Run
