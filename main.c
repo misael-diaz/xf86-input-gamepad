@@ -428,8 +428,7 @@ int main()
 }
 */
 
-
-// TODO:
+// XF86 Driver Notes:
 // from the xf86-input-joystick we know that the we have to impl GamepadKeyboardDeviceControlProc() function to handle the different levels of operation: DEVICE_INIT, DEVICE_ON, DEVICE_OFF, and DEVICE_CLOSE
 //
 // DEVICE_INIT is the most critical one to have a functional driver (not that the other modes are not important but are trivial to implement in comparison). First we have to intialize focus for the device and then initialize the keys. However from reading at the impl of InitKeyboardDeviceStruct it calls InitFocusClassDeviceStruct() if dev->focus is NULL. Need to understand if initializing focus ahead is a requirement for our driver or if we can simply let the InitKeyboardDeviceStruct() handle this to simplify our end if the effect is the same. So the question I need to answer is if order is crucial here.
