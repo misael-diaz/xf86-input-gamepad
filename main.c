@@ -25,6 +25,8 @@
 #include <xorg/xf86Opt.h>
 #include <xorg/xkbsrv.h>
 
+#define GAMEPAD_DRIVER_NAME "gamepad"
+#define GAMEPAD_MODULE_NAME (GAMEPAD_DRIVER_NAME)
 #define PACKAGE_VERSION_MAJOR 1
 #define PACKAGE_VERSION_MINOR 0
 #define PACKAGE_VERSION_PATCHLEVEL 0
@@ -87,18 +89,29 @@ struct _GamepadDevRec {
 };
 
 static int GamepadCorePreInit(
-	struct _InputDriverRec *driver,
-	struct _InputInfoRec *info,
+	struct _InputDriverRec *driver_gamepad,
+	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
-	struct _InputDriverRec *KeyboardDevice = NULL;
-	return 0;
+	struct _InputDriverRec *driver_keyboard = NULL;
+	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
+	if (src) {
+		if (!strcmp(src, "_driver/joystick")) {
+			// TODO implement PreInit for keyboard device
+			xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: kdbPreInit not implemented", GAMEPAD_DRIVER_NAME, src);
+			return BadImplementation;
+		}
+		else {
+			xf86Msg(X_DEBUG, "[%s] _source: %s\n", GAMEPAD_DRIVER_NAME, src);
+		}
+	}
+	return BadImplementation;
 }
 
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
     .driverVersion = 1,
-    .driverName = "gamepad",
+    .driverName = GAMEPAD_DRIVER_NAME,
     .Identify = NULL,
     .PreInit = NULL,
     .UnInit = NULL,
@@ -126,7 +139,7 @@ static void GamepadDriverTeardown(void *p)
 }
 
 static XF86ModuleVersionInfo ModuleVersionGamepad = {
-	.modname = "gamepad",
+	.modname = GAMEPAD_MODULE_NAME,
 	.vendor = MODULEVENDORSTRING,
 	._modinfo1_ = MODINFOSTRING1,
 	._modinfo2_ = MODINFOSTRING2,
