@@ -67,12 +67,6 @@ The following command builds the driver as a shared object (\*.so) that the xser
 gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -fPIC -shared -O0 -gdwarf-4 -g main.c -o gamepad.so
 ```
 
-## Run
-
-```sh
-./gamepad.bin
-```
-
 ## Linux Kernel Reference
 
 A quick reference of the macros defined by the Linux kernel that are relevant for the development of this driver. The links provided below are for the the 5.4 version of the kernel.
