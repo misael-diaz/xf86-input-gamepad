@@ -45,6 +45,12 @@ Wrote an event-loop that processes joystick events as they happen (one at a time
 
 ## Requirements
 
+Install the development files
+
+```sh
+apt install xorg-dev
+```
+
 The user that executes the code must be in the `input` group
 
 if not you must add the user via (you must be root to do this):
