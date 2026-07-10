@@ -167,8 +167,13 @@ static int GamepadCorePreInit(
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
 	struct _GamepadDriverRec *data = module->TearDownData;
 
-	// TODO: probe /dev/input/eventX to get the device name that has BTN_GAMEPAD enabled
-	data->device.devname = "UNKNOWN_REQUIRES_IMPL";
+	if (!data->device.devname) {
+		xf86Msg(X_DEBUG, "[%s] error: device name was not set during driver setup %s\n", GAMEPAD_DRIVER_NAME);
+		return BadImplementation;
+	}
+	else {
+		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, data->device.devname);
+	}
 	if (!(info_gamepad->flags & XI86_SERVER_FD)) {
 		if (-1 == info_gamepad->fd) {
 			// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
