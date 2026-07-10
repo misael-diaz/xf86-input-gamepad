@@ -110,7 +110,7 @@ _X_EXPORT struct _InputDriverRec GAMEPAD = {
 };
 
 // the pointer type is defined as typedef void* pointer in /usr/include/X11/Xdefs.h
-static void *GamepadDriverPlug(
+static void *GamepadDriverSetup(
 	void *module,
 	void *options,
 	int *errmaj,
@@ -120,7 +120,7 @@ static void *GamepadDriverPlug(
     return module;
 }
 
-static void GamepadDriverUnplug(void *p)
+static void GamepadDriverTeardown(void *p)
 {
 	return;
 }
@@ -142,8 +142,8 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 
 _X_EXPORT XF86ModuleData gamepadModuleData = {
     .vers = &ModuleVersionGamepad,
-    .setup = GamepadDriverPlug,
-    .teardown = GamepadDriverUnplug
+    .setup = GamepadDriverSetup,
+    .teardown = GamepadDriverTeardown
 };
 
 int IsEventDevice(struct dirent const *dir)
@@ -785,9 +785,9 @@ int main()
 // nm gamepad.so | grep -i moduledata
 // 0000000000004150 D GamepadModuleData
 //
-// from the module data it will check the versions and binds the DriverPlug and DriverUnplug functions, set the TearDownData and the VersionInfo.
+// from the module data it will check the versions and binds the DriverSetup and DriverTeardown functions, set the TearDownData and the VersionInfo.
 //
-// This is where the xserver calls the `SetupProc` function (in this case DriverPlug) to set the `TearDownData`, see the struct definition:
+// This is where the xserver calls the `SetupProc` function (in this case DriverSetup) to set the `TearDownData`, see the struct definition:
 //
 //typedef struct module_desc {
 //    struct module_desc *child;
