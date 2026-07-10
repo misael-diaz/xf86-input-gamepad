@@ -544,6 +544,84 @@ int main()
 	free(devname_gamepad);
 	return 0;
 }
+
+// sample code for creating a symbolink to the /dev/input/eventX device
+// maybe it would useful to be able to create a symbolic link to the gamepad so here's a sample code that shows how to do that
+
+#include <linux/input.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#define TARGET "TARGET_DEVICE"
+
+int main()
+{
+	char buf[1024];
+	memset(buf, 0, sizeof(buf));
+
+	errno = 0;
+	int rc = readlink(TARGET, buf, sizeof(buf));
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", strerror(errno));
+		_exit(1);
+	}
+
+	char *match = NULL;
+	match = strstr(buf, "event");
+	if (!match) {
+		fprintf(stderr, "error: no 'event' substring in device name\n");
+		_exit(1);
+	}
+
+	char devname[1024] = "/dev/input/";
+	strcat(devname, match);
+	fprintf(stdout, "device: %s\n", devname);
+
+	errno = 0;
+	int fd = open(devname, O_RDONLY);
+	if (-1 == fd) {
+		fprintf(stderr, "%s\n", strerror(errno));
+		_exit(1);
+	}
+
+	char name[1024];
+	memset(name, 0, sizeof(name));
+
+	errno = 0;
+	memset(name, 0, sizeof(name));
+	rc = ioctl(fd, EVIOCGPHYS(sizeof(name)), name);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", strerror(errno));
+		_exit(1);
+	}
+	fprintf(stdout, "%s\n", name);
+
+	match = strstr(name, "/");
+	if (!match) {
+		fprintf(stderr, "error: no '/' in string\n");
+		_exit(1);
+	}
+
+	char link[1024] = "/dev/input/by-path/";
+	strncat(link, name, match - name);
+	fprintf(stdout, "link: %s\n", link);
+
+	errno = 0;
+	rc = symlink(devname, link);
+	if (-1 == rc) {
+		fprintf(stderr, "%s\n", strerror(errno));
+		_exit(1);
+	}
+
+	close(fd);
+	return 0;
+}
+
 */
 
 // XF86 Driver Notes:
