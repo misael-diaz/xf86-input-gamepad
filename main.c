@@ -94,6 +94,7 @@ static int GamepadCorePreInit(
 	int flags
 ) {
 	struct _InputDriverRec *driver_keyboard = NULL;
+	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves from this PreInit function)
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 	if (src) {
 		if (!strcmp(src, "_driver/joystick")) {
@@ -103,6 +104,27 @@ static int GamepadCorePreInit(
 		}
 		else {
 			xf86Msg(X_DEBUG, "[%s] _source: %s\n", GAMEPAD_DRIVER_NAME, src);
+		}
+	}
+
+	info_gamepad->device_control = NULL; // TODO impl GamepadCoreControl
+	info_gamepad->read_input = NULL; // TODO impl GamepadCoreRead
+	info_gamepad->control_proc = NULL; // NOTE: `control_proc` only needed if we intend to support DEVICE_CORE, DEVICE_ABS_CALIB, DEVICE_ABS_AREA (this is what I know from reading the xserver source code but what modes are these are still elusive TODO: research this)
+	info_gamepad->switch_mode = NULL; // NOTE: only needed for devices that can switch reporting relative to absolute position
+	info_gamepad->dev = NULL; // NOTE: set by AddInputDevice()
+	info_gamepad->private = NULL;
+	info_gamepad->type_name = XI_JOYSTICK;
+	if (info_gamepad->drv) {
+		xf86Msg(X_DEBUG, "[%s] driver: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->drv->driverName);
+	} else {
+		// NOTE: should have been set by xf86AddInput() right before calling this PreInit function; see call stack: NewInputDeviceRequest() -> xf86NewInputDevice() -> xf86AddInput() -> drv->PreInit()
+		xf86Msg(X_DEBUG, "[%s] driver: %s\n", GAMEPAD_DRIVER_NAME, "UNKNOWN");
+		return BadImplementation;
+	}
+	if (!(info_gamepad->flags & XI86_SERVER_FD)) {
+		if (-1 != info_gamepad->fd) {
+			// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
+			xf86Msg(X_DEBUG, "[%s] fd: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
 		}
 	}
 	return BadImplementation;
