@@ -88,12 +88,19 @@ struct _GamepadDevRec {
 	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
 };
 
+static struct _InputInfoRec *GamepadKeyboardHotplug(
+	struct _InputInfoRec *info,
+	int flags
+) {
+	return NULL;
+}
+
 static int GamepadCorePreInit(
 	struct _InputDriverRec *driver_gamepad,
 	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
-	struct _InputDriverRec *driver_keyboard = NULL;
+	struct _InputInfoRec *info_keyboard = NULL;
 	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves from this PreInit function)
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 	if (src) {
@@ -127,6 +134,8 @@ static int GamepadCorePreInit(
 			xf86Msg(X_DEBUG, "[%s] fd: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
 		}
 	}
+
+	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
 	return BadImplementation;
 }
 
