@@ -1,6 +1,7 @@
 #include <linux/input.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -50,6 +51,17 @@ _Static_assert(sizeof(int64_t) == 8);
 #define LONG(x) ((x) >> 6)
 #define test_bit(bit, array) (((array[LONG(bit)] >> OFF(bit))) & 1)
 
+struct _ModuleDesc {
+    struct module_desc *child;
+    struct module_desc *sib;
+    struct module_desc *parent;
+    void *handle;
+    ModuleSetupProc SetupProc;
+    ModuleTearDownProc TearDownProc;
+    void *TearDownData;         /* returned from SetupProc */
+    const XF86ModuleVersionInfo *VersionInfo;
+};
+
 struct _KeybdCtrl {
 	KeybdCtrl ctrl;
 };
@@ -60,14 +72,14 @@ enum _GAMEPADEVENT {
     EVENT_AXIS
 };
 
-typedef int (*GamepadOpen)(
+typedef int (*GamepadOpenFn)(
 	struct _GamepadDevRec *gamepad,
 	Bool probe
 );
 
-typedef void (*GamepadClose)(struct _GamepadDevRec *gamepad);
+typedef void (*GamepadCloseFn)(struct _GamepadDevRec *gamepad);
 
-typedef int (*GamepadRead)(
+typedef int (*GamepadReadFn)(
 	struct _GamepadDevRec *gamepad,
 	enum _GAMEPADEVENT *event,
 	int *number
@@ -75,18 +87,38 @@ typedef int (*GamepadRead)(
 
 // KbRMLVO: Keyboard Rules Model Layout Variant Options
 struct _GamepadDevRec {
-	int fd;
-	GamepadOpen open;
-	GamepadClose close;
-	GamepadRead read;
 	char *devname; // devname = "/dev/input/eventX"
+	GamepadOpenFn open;
+	GamepadCloseFn close;
+	GamepadReadFn read;
 	struct _InputInfoRec *gamepad;
 	struct _InputInfoRec *keyboard;
 	struct _XkbRMLVOSet *options;
+	int fd;
 	uint8_t btno;
 	uint8_t axno;
 	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
 };
+
+struct _GamepadDriverRec {
+    struct _GamepadDevRec device;
+    uintptr_t base;
+    uint64_t size;
+};
+
+static int GamepadOpen(
+	struct _InputInfoRec *info
+) {
+	// TODO: research probing in joystick device
+	if (info->flags & XI86_SERVER_FD) {
+		if (-1 == info->fd) {
+			xf86Msg(X_ERROR, "[%s] error: xserver should have openned the device by now", GAMEPAD_DRIVER_NAME);
+			return BadImplementation;
+		}
+	}
+
+
+}
 
 static struct _InputInfoRec *GamepadKeyboardHotplug(
 	struct _InputInfoRec *info,
@@ -101,12 +133,12 @@ static int GamepadCorePreInit(
 	int flags
 ) {
 	struct _InputInfoRec *info_keyboard = NULL;
-	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves from this PreInit function)
+	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves in the call stack of this PreInit function)
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 	if (src) {
 		if (!strcmp(src, "_driver/joystick")) {
 			// TODO implement PreInit for keyboard device
-			xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: kdbPreInit not implemented", GAMEPAD_DRIVER_NAME, src);
+			xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: kdbPreInit not implemented\n", GAMEPAD_DRIVER_NAME);
 			return BadImplementation;
 		}
 		else {
@@ -128,10 +160,15 @@ static int GamepadCorePreInit(
 		xf86Msg(X_DEBUG, "[%s] driver: %s\n", GAMEPAD_DRIVER_NAME, "UNKNOWN");
 		return BadImplementation;
 	}
+	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
+	struct _GamepadDriverRec *data = module->TearDownData;
+
+	// TODO: probe /dev/input/eventX to get the device name that has BTN_GAMEPAD enabled
+	data->device.devname = "UNKNOWN_REQUIRES_IMPL";
 	if (!(info_gamepad->flags & XI86_SERVER_FD)) {
 		if (-1 == info_gamepad->fd) {
 			// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
-			xf86Msg(X_DEBUG, "[%s] fd: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
+			xf86Msg(X_DEBUG, "[%s] fd: %d\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
 			// TODO lookup /dev/input/eventX for a gamepad and then open file descriptor to the device; this is needed because at this point the caller has tried openning the device but was unable to do so because we are trying to support platforms without systemd. One last thing you don't need to set the options yet that is private to the gamepad (the keyboard probably does not need to know this since it is private data)
 			return BadImplementation;
 		}
@@ -162,12 +199,47 @@ static void *GamepadDriverSetup(
 	int *errmaj,
 	int *errmin
 ) {
+    errno = 0;
+    int64_t rc = sysconf(_SC_PAGESIZE);
+    if (-1 == rc) {
+	xf86Msg(X_ERROR, "[%s] error: failed to query the pagesize", GAMEPAD_DRIVER_NAME);
+	if (errno) {
+	    xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+	}
+	return NULL;
+    }
+    uint64_t const pagesz = (typeof(pagesz)) rc;
+    void *base = mmap(NULL, pagesz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    errno = 0;
+    if (MAP_FAILED == base) {
+	xf86Msg(X_ERROR, "[%s] error: failed to map driver data", GAMEPAD_DRIVER_NAME);
+	if (errno) {
+	    xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+	}
+        return NULL;
+    }
+
+    struct _GamepadDriverRec *priv = (typeof(priv)) base;
+    priv->base = (uintptr_t) base;
+    priv->size = (typeof(priv->size)) pagesz;
+    void *TearDownData = base;
     xf86AddInputDriver(&GAMEPAD, module, 0);
-    return module;
+    return TearDownData;
 }
 
 static void GamepadDriverTeardown(void *p)
 {
+	errno = 0;
+	struct _GamepadDriverRec *priv = (typeof(priv)) p;
+	void *base = (typeof(base)) priv->base;
+	uint64_t size = (typeof(size)) priv->size;
+	int rc = munmap(base, size);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] error: failed to unmap driver data\n", GAMEPAD_DRIVER_NAME);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+	}
 	return;
 }
 
