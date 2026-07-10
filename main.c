@@ -12,6 +12,8 @@
 #include <string.h>
 #include <errno.h>
 
+// TODO: in read() check the BTN_GAMEPAD bit first if it's not set that means that the user unplugged the device and so we must disable it. Check if the xserver will try to enable us later so that we can probe for gamepad devices, open it, and start reading events from it.
+
 // NOTE: borrowed this macro function from /usr/include/xorg/xorgVersion.h, I am assuming that the freedesktop developers left this to inform the next developers about their versioning logic
 #define __XORG_VERSION_NUMERIC(major,minor,patch,snap,dummy) \
         (((major) * 10000000) + ((minor) * 100000) + ((patch) * 1000) + snap)
