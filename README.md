@@ -65,6 +65,19 @@ and then for this to take effect immediately (as a regular user):
 newgrp input
 ```
 
+## Config
+
+minimal driver configuration
+
+```
+Section "InputClass"
+	Identifier "gamepad"
+	Driver "gamepad"
+	MatchIsJoystick "on"
+	MatchDevicePath "/dev/input/event*"
+EndSection
+```
+
 ## Build
 
 The following command builds the driver as a shared object (\*.so) that the xserver can load:
