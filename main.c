@@ -91,7 +91,7 @@ typedef int (*GamepadReadFn)(
 
 // TODO: instead of a char* for devname use a suitable offset for holding the device name, this is far better than using a pointer and having to free() the memory of devname
 struct _GamepadDevRec {
-	char *devname; // devname = "/dev/input/eventX"
+	struct _GamepadDriverRec *driver;
 	GamepadOpenFn open;
 	GamepadCloseFn close;
 	GamepadReadFn read;
@@ -105,9 +105,11 @@ struct _GamepadDevRec {
 };
 
 struct _GamepadDriverRec {
-    struct _GamepadDevRec device;
     uintptr_t base;
     uint64_t size;
+    uint64_t offset_devname;
+    uint64_t size_devname;
+    struct _GamepadDevRec device;
 };
 
 static int GamepadOpen(
@@ -167,12 +169,14 @@ static int GamepadCorePreInit(
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
 	struct _GamepadDriverRec *data = module->TearDownData;
 
-	if (!data->device.devname) {
+	char *devname = (char*) (data->base + data->offset_devname);
+
+	if (!data->size_devname) {
 		xf86Msg(X_DEBUG, "[%s] error: device name was not set during driver setup %s\n", GAMEPAD_DRIVER_NAME);
 		return BadImplementation;
 	}
 	else {
-		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, data->device.devname);
+		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, devname);
 	}
 	if (!(info_gamepad->flags & XI86_SERVER_FD)) {
 		if (-1 == info_gamepad->fd) {
@@ -206,10 +210,6 @@ static void GamepadDriverTeardown(void *p)
 {
 	errno = 0;
 	struct _GamepadDriverRec *priv = (typeof(priv)) p;
-	if (priv->device.devname) {
-		free(priv->device.devname);
-		priv->device.devname = NULL;
-	}
 	void *base = (typeof(base)) priv->base;
 	uint64_t size = (typeof(size)) priv->size;
 	int rc = munmap(base, size);
@@ -246,7 +246,7 @@ static int IsEventDevice(struct dirent const *dir)
 	return ((0 == rc)? 1 : 0);
 }
 
-static char *GetGamePadDeviceName(void)
+static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
 {
 	errno = 0;
 	int64_t rc = 0;
@@ -258,7 +258,7 @@ static char *GetGamePadDeviceName(void)
 		if (errno) {
 			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
 		}
-		return NULL;
+		return BadRequest;
 	}
 
 	int const devno = rc;
@@ -277,7 +277,7 @@ static char *GetGamePadDeviceName(void)
 				free(namelist[i]);
 			}
 			free(namelist);
-			return NULL;
+			return BadRequest;
 		}
 
 		errno = 0;
@@ -295,7 +295,7 @@ static char *GetGamePadDeviceName(void)
 				free(namelist[i]);
 			}
 			free(namelist);
-			return NULL;
+			return BadRequest;
 		}
 
 		errno = 0;
@@ -314,7 +314,7 @@ static char *GetGamePadDeviceName(void)
 				free(namelist[i]);
 			}
 			free(namelist);
-			return NULL;
+			return BadRequest;
 		}
 
 		if (test_bit(EV_KEY, bit)) {
@@ -330,11 +330,19 @@ static char *GetGamePadDeviceName(void)
 					free(namelist[i]);
 				}
 				free(namelist);
-				return NULL;
+				return BadRequest;
 			}
 			if (test_bit(BTN_GAMEPAD, code)) {
 				xf86Msg(X_DEBUG, "[%s] detected gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
-				gamepad = strdup(devname);
+				char *gamepad = (char*) (drv->base + drv->offset_devname);
+				uint64_t const len = strlen(devname);
+				drv->size_devname = (1 + len);
+				if (PATH_MAX <= len) {
+					xf86Msg(X_DEBUG, "[%s] device name length is greater than or equal to PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
+					return BadRequest;
+				}
+				strncpy(dev, devname, len);
+				gamepad[len] = 0;
 				close(fd);
 				break;
 			}
@@ -348,7 +356,7 @@ static char *GetGamePadDeviceName(void)
 	}
 	free(namelist);
 
-	return gamepad;
+	return Success;
 }
 
 // the pointer type is defined as typedef void* pointer in /usr/include/X11/Xdefs.h
@@ -379,9 +387,32 @@ static void *GamepadDriverSetup(
     }
 
     struct _GamepadDriverRec *priv = (typeof(priv)) base;
-    priv->device.devname = GetGamePadDeviceName();
     priv->base = (uintptr_t) base;
     priv->size = (typeof(priv->size)) pagesz;
+    priv->device.driver = priv;
+    priv->offset_devname = ((sizeof(*priv) + 63) + ~63);
+    priv->size_devname = 0;
+
+    if ((sizeof(*priv) + PATH_MAX) > pagesz) {
+	    xf86Msg(X_ERROR, "[%s] error: insufficient memory-map size\n", GAMEPAD_DRIVER_NAME);
+	    return NULL;
+    }
+
+    rc = GamepadGetDeviceName(priv);
+    if (Success != rc) {
+	    xf86Msg(X_ERROR, "[%s] error: failed to get device name\n", GAMEPAD_DRIVER_NAME);
+	    return NULL;
+    }
+
+    if (!priv->size_devname) {
+	    xf86Msg(X_ERROR, "[%s] error: failed to get the size of the name of the device\n", GAMEPAD_DRIVER_NAME);
+	    return NULL;
+    }
+    else if (PATH_MAX < priv->size_devname) {
+	    xf86Msg(X_ERROR, "[%s] error: size of the name of the device is greater than PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
+	    return NULL;
+    }
+
     void *TearDownData = base;
     xf86AddInputDriver(&GAMEPAD, module, 0);
     return TearDownData;
@@ -417,7 +448,7 @@ _X_EXPORT XF86ModuleData gamepadModuleData = {
 int main()
 {
 	int64_t rc = 0;
-	char *devname_gamepad = GetGamePadDeviceName();
+	char *devname_gamepad = GamepadGetDeviceName();
 	if (!devname_gamepad) {
 		fprintf(stdout, "%s\n", "no gamepad devices were found");
 		_exit(0);
