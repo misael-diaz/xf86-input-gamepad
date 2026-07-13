@@ -51,6 +51,24 @@ Install the development files
 apt install xorg-dev
 ```
 
+you might also want to install the debugging symbols for the xserver as well:
+
+```sh
+apt install xserver-xorg-core-dbgsym
+```
+
+that alone did not work for me so I had to update the pkg list first:
+
+```
+printf "deb http://ddebs.ubuntu.com %s main restricted universe multiverse\n" focal{,-updates,-security,-proposed} | tee /etc/apt/sources.list.d/ddebs.list
+```
+
+```sh
+apt update
+```
+
+and try again to obtain the debugging symbols.
+
 The user that executes the code must be in the `input` group
 
 if not you must add the user via (you must be root to do this):
