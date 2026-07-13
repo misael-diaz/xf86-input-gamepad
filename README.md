@@ -104,6 +104,38 @@ The following command builds the driver as a shared object (\*.so) that the xser
 gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -fPIC -shared -O0 -gdwarf-4 -g main.c -o gamepad.so
 ```
 
+## Debugging
+
+The way I am debugging the driver is by starting the xserver with `gdbserver`:
+
+```sh
+gdbserver :2000 /usr/lib/xorg/Xorg :10 -keeptty
+```
+
+for this to work you need to issue that command from the console, which you can access by hitting any of the `Ctrl + Alt + Fx` keys, such as `Ctrl + Alt + F3`. To go back to your desktop environment you can use `Ctrl + Alt + F7`.
+
+Note that `:2000` instructs `gdbserver` to listen on port `2000` and that the commands that follow `Xorg` are the arguments for `Xorg`, namely the display number `:10` and `-keeptty` so that the xserver won't detach from the controlling `tty` and be able to respond to keyboard signals (for instance see xf86ProcessArgument() in `xserver/hw/os-support/linux/lnx_init.c`).
+
+On another machine you will need to run `gdb` to bind to the debugging session on the target machine.
+
+My other Linux box is out of comission so I had to borrow a Window PC, download putty and loging to the target machine.
+
+Once you have logged in via SSH you can run the debugger:
+
+```sh
+gdb
+```
+
+and from there issue the command
+
+```gdb
+target remote localhost:2000
+```
+
+here using `localhost` because I am logged in via SSH (from the Windows machine) to the target Linux machine.
+
+from here on you will be able to setup your breakpoints and step through the code in the usual way albeit keep in mind that the code was compiled with `-g -O2` and so some of the code has been optimized away. If you want a closer experience you might have to compile the entire X11 project (which consists of hundreds of packages) yourself. Let's hope you don't need to do that.
+
 ## Linux Kernel Reference
 
 A quick reference of the macros defined by the Linux kernel that are relevant for the development of this driver. The links provided below are for the the 5.4 version of the kernel.
