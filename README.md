@@ -136,6 +136,97 @@ here using `localhost` because I am logged in via SSH (from the Windows machine)
 
 from here on you will be able to setup your breakpoints and step through the code in the usual way albeit keep in mind that the code was compiled with `-g -O2` and so some of the code has been optimized away. If you want a closer experience you might have to compile the entire X11 project (which consists of hundreds of packages) yourself. Let's hope you don't need to do that.
 
+GDB is smart enough to know that you have local access and so it will recommend you to use `set sysroot` and so you do to get faster access to the files:
+
+```gdb
+set sysroot
+```
+
+And that's one step done, more to go.
+
+You will get the symbols but gdb won't be able to find the source files because you don't have the build environment that the maintainer used and so you need to substitute the path; set a breakpoint first such as `dix_main` (this the closest breakpoint after the entry point for Linux) and then ask gdb for the source info
+
+```gdb
+b dix_main
+```
+
+that sets the breakpoint and then hit continue
+
+```gdb
+c
+```
+
+and you will see
+
+```gdb
+Breakpoint 1 at 0x5555555b4eb0: file ../../../../dix/main.c, line 127.
+```
+
+```gdb
+info source
+```
+
+```gdb
+Current source file is ../../../../dix/main.c
+Compilation directory is ./debian/build/main/dix
+Source language is c.
+Producer is GNU C17 9.4.0 -mtune=generic -march=x86-64 -g -O2 -fno-strict-aliasing -fvisibility=hidden -fstack-protector-strong -fPIC -fasynchronous-unwind-tables -fstack-protector-strong -fstack-clash-protection -fcf-protection.
+Compiled with DWARF 2 debugging format.
+Does not include preprocessor macro info.
+```
+
+what you have to do is replace the compilation directory `./debian/build/main/dix` (see second line of output above) with the actual path to the `dix` directory in your machine
+
+
+```gdb
+(gdb) set substitute-path ./debian/build/main/dix /full/path/to/xserver/dix
+```
+
+if that worked you should be able to list the source file contents:
+
+```gdb
+(gdb) l
+warning: Source file is more recent than executable.
+122
+123	CallbackListPtr RootWindowFinalizeCallback = NULL;
+124
+125	int
+126	dix_main(int argc, char *argv[], char *envp[])
+127	{
+128	    int i;
+129	    HWEventQueueType alwaysCheckForInput[2];
+130
+131	    display = "0";
+```
+
+it's likely that you will see the warning but it's safe. Just make sure that you are looking at the same version of the xserver, the tag should match the version in my case the version 1.20.13:
+
+```sh
+git log
+```
+
+the output of the `git-log` command shows the matching tag
+
+```
+commit 86a72cb1927dd91132d231bb7920b651704601ef (HEAD -> v1.20.13, tag: xorg-server-1.20.13
+```
+
+you can see all tags via:
+
+```sh
+git tag -l
+```
+
+and if you have not done so you can create a branch to that tag
+
+```sh
+git branch --no-track v1.20.13 xorg-server-1.20.13
+```
+
+where `v1.20.13` is the branch name and `xorg-server-1.20.13` is the tag.
+
+It's likely that you may have to repeat the path-subtitution step a couple of times as you trace the execution of the xserver. Let me know if you find a better way.
+
 ## Linux Kernel Reference
 
 A quick reference of the macros defined by the Linux kernel that are relevant for the development of this driver. The links provided below are for the the 5.4 version of the kernel.
