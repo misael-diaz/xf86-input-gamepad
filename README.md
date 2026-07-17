@@ -1,6 +1,8 @@
 # xf86-input--gamepad
 xf86 driver development for gamepads
 
+I am writing this driver to learn about GNU/Linux, I am aware that new input drivers should be written with `libinput`. This project has taken me to read (some of) the linux kernel, dbus, libudev, systemd, and xserver code to help me understand the overall process by looking at the source.
+
 This driver does not intend to handle analog signals (in the form of events) at this point, for now the driver is meant to handle events for action buttons and direction-pads (dpads).
 
 **Development status**: writing exploratory code to learn about the Linux legacy joystick event handling.
