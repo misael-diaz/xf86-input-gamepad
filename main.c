@@ -1105,3 +1105,12 @@ int main()
 // to understand this function you must bear in mind that `ap` stands for the previous element of the list `a`, and similarly `bp` stands for the previous element of list `b`. If the `a` list runs out of elements it rewinds in some sense until the other list is fully traversed and checked for duplicate options. Priority is given to the inputclass options (the `a` list). It's useful to draw diagrams of the two lists as the algorithm does its job to not miss a thing of what the algorithm does (this is understanding by first principles).
 //
 // This is why it's important to read the xserver source code so that you can catch subtle errors.
+//
+//
+// The last thing done during InitInput() is config_init() which probably calls config_udev() on my system. There you will see the creation of "device" option this does not mean that you have solved the mystery though you need to continue reading and understanding how all of this works. And surely you need to know about libudev, there are man pages but this is reference info only.
+//
+//
+// Good news, some progress has been done.
+// - It's not necessary to debug the Xserver during it startup sequence for troubleshooting the gamepad device driver.
+// - when a device is plugged in the udev `socket_handler` handler adds the device, yes the xserver in linux probably uses epoll to check for udev events and so simply plugging in the gamepad to the USB will trigger a read (I have verified this).
+// - during the call to `socket_handler` it will call NewInputDeviceRequest() and if we have added some configuration for our gamepad it will check the device attributes against match options in the gamepad configuration file. Here is were you need to be careful what you put in there because that alone might be enough for the device to be ignored. Meaning that the our driver won't be assigned to the device if there's a mismatch in any of those options. Recommendation is to run another GDB session to see what attributes you get and then decide what matches should you use.
