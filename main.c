@@ -395,7 +395,8 @@ static void *GamepadDriverSetup(
     priv->offset_devname = ((sizeof(*priv) + 63) + ~63);
     priv->size_devname = 0;
 
-    if ((sizeof(*priv) + PATH_MAX) > pagesz) {
+    if ((sizeof(*priv) + PATH_MAX) > size_mmap) {
+	    // this should never happen but it does not hurt to check just in case someone changes the source later down the road
 	    xf86Msg(X_ERROR, "[%s] error: insufficient memory-map size\n", GAMEPAD_DRIVER_NAME);
 	    munmap(base, size_mmap);
 	    return NULL;
