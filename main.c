@@ -180,10 +180,10 @@ static int GamepadCorePreInit(
 
 	// TODO: driver owns the device file descriptor so make sure of that
 	if (info_gamepad->flags & XI86_SERVER_FD) {
-			// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
-			xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
-			// TODO lookup /dev/input/eventX for a gamepad and then open file descriptor to the device; this is needed because at this point the caller has tried openning the device but was unable to do so because we are trying to support platforms without systemd. One last thing you don't need to set the options yet that is private to the gamepad (the keyboard probably does not need to know this since it is private data)
-			return BadImplementation;
+		// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
+		xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
+		// TODO lookup /dev/input/eventX for a gamepad and then open file descriptor to the device; this is needed because at this point the caller has tried openning the device but was unable to do so because we are trying to support platforms without systemd. One last thing you don't need to set the options yet that is private to the gamepad (the keyboard probably does not need to know this since it is private data)
+		return BadImplementation;
 	}
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
