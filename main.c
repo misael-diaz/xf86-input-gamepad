@@ -53,6 +53,7 @@ _Static_assert(sizeof(int64_t) == 8);
 #define LONG(x) ((x) >> 6)
 #define test_bit(bit, array) (((array[LONG(bit)] >> OFF(bit))) & 1)
 
+// this is an internal data structure actually defined as `struct module_desc` in xserver/hw/xfree86/loader/loaderProcs.h
 struct _ModuleDesc {
     struct module_desc *child;
     struct module_desc *sib;
