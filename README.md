@@ -9,7 +9,7 @@ This driver does not intend to handle analog signals (in the form of events) at 
 
 ## Development Progress
 
-### Getting to know my Gamepad through system calls
+### Week 1: Getting to know my Gamepad through system calls
 
 Processing input events from the gamepad is far simpler than I imagined back when I started playing video games in GNU/Linux. Reading events is as simple as a system call `read`. If you want to read a single joystick event well you pass a pointer to a `struct js_event` instance and use `sizeof` to inform how many bytes the application intends to read.
 
@@ -41,9 +41,18 @@ of course you should check the returned code `rc` and `errno` values for runtime
 
 By looking at this I realized that when I plug in a gamepad the linux kernel probably uses the same `ioctl` call to log the name of the device in the kernel ring buffer. The kernel ring buffer can be obtained by executing the `dmesg` command. And to me this realization was a truly exciting moment (consider that this is the first time I am writing code to process events issued by the Linux kernel).
 
-### Gamepad Mappings
+**Gamepad Mappings**
 
 Wrote an event-loop that processes joystick events as they happen (one at a time). The fields of the `struct js_event` are logged on the console along the button and axes mappings (commit [3ce9d33e](https://github.com/misael-diaz/xf86-input-gamepad/tree/3ce9d33e464258415847b83b1d5aeb47466b2129)).
+
+### Week 2 Reading XServer code
+
+Mostly reading the Xserver source code and also the xf86-input-joystick implementation. This makes sense because this the first driver that I write a driver for the xserver.
+
+### Week 3 Driver Pre-Initialization
+
+-**debugging**: debugging the xserver as it is running is totally a game changer because I can see what the server does just before it calls the driver. The xserver is a massive codebase and so reading alone is not enough, though I am starting to develop a mental model of what the server does when I plugin the gamepad device.
+-**mapping device**: udev reports the /dev/input/jsX device when I plug the gamepad and this not what we want because if we used it we would be using the legacy linux input API for joysticks. Instead during PreInit we find the /dev/input/eventX device that matches the device name that udev finds. It's important to take into account that the xserver polls udev socket to know when devices are plugged in and removed. This work in particular was completed in commit [d068c1c5](https://github.com/misael-diaz/xf86-input-gamepad/tree/d068c1c5a48bbbce4d9ebab0f325c50bc489cf27).
 
 ## Requirements
 
