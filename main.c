@@ -262,6 +262,7 @@ static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
 		return BadRequest;
 	}
 
+	// TODO: here you check for matching device name with ioctls once you get a matching product name then you that's your device. the problem here is that udev sets the device name to /dev/input/jsX but we want /dev/input/eventX to use the modern linux kernel input device API
 	int const devno = rc;
 	for (int i = 0; i != devno; ++i) {
 		errno = 0;
