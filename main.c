@@ -280,6 +280,10 @@ static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
 
 	int const devno = rc;
 	for (int i = 0; i != devno; ++i) {
+		if (strstr(namelist[i]->d_name, "js")) {
+			// excludes /dev/input/jsX devices because we don't want to use the legacy linux input joystick API
+			continue;
+		}
 		errno = 0;
 		char devname[PATH_MAX] = "/dev/input/";
 		if (PATH_MAX <= (strlen(devname) + strlen(namelist[i]->d_name) + 1)) {
