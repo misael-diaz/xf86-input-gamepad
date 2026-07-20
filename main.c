@@ -399,6 +399,7 @@ static void *GamepadDriverSetup(
 	    return NULL;
     }
 
+    // FIXME: during setup we have no means of getting the gamepad device that udev detected unless there's only one device; this will have to wait until PreInit() and so move this code there
     rc = GamepadGetDeviceName(priv);
     if (Success != rc) {
 	    xf86Msg(X_ERROR, "[%s] error: failed to get device name\n", GAMEPAD_DRIVER_NAME);
