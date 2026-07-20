@@ -390,7 +390,7 @@ static void *GamepadDriverSetup(
 
     struct _GamepadDriverRec *priv = (typeof(priv)) base;
     priv->base = (uintptr_t) base;
-    priv->size = (typeof(priv->size)) pagesz;
+    priv->size = (typeof(priv->size)) size_mmap;
     priv->device.driver = priv;
     priv->offset_devname = ((sizeof(*priv) + 63) + ~63);
     priv->size_devname = 0;
