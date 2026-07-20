@@ -402,21 +402,6 @@ static void *GamepadDriverSetup(
     }
 
     // FIXME: during setup we have no means of getting the gamepad device that udev detected unless there's only one device; this will have to wait until PreInit() and so move this code there
-    rc = GamepadGetDeviceName(priv);
-    if (Success != rc) {
-	    xf86Msg(X_ERROR, "[%s] error: failed to get device name\n", GAMEPAD_DRIVER_NAME);
-	    return NULL;
-    }
-
-    if (!priv->size_devname) {
-	    xf86Msg(X_ERROR, "[%s] error: failed to get the size of the name of the device\n", GAMEPAD_DRIVER_NAME);
-	    return NULL;
-    }
-    else if (PATH_MAX < priv->size_devname) {
-	    xf86Msg(X_ERROR, "[%s] error: size of the name of the device is greater than PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
-	    return NULL;
-    }
-
     void *TearDownData = base;
     xf86AddInputDriver(&GAMEPAD, module, 0);
     return TearDownData;
