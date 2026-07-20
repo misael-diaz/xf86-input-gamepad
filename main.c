@@ -1125,3 +1125,10 @@ int main()
 // - after the merge the code checks the pInfo->driver, assuming that the merge was successful (see previous comments) the xserver won't ignore the device.
 // - calls xf86NewInputDevice() if form some reason it fails it must be because auto configuration is not enabled. see the passed argument is_auto which should be equal to one (truthfty value) becasue this device was discovered by udev.
 // - within the driver you will need to replace the device string option to /dev/input/eventX so that you can use the event API instead of the legacy joystick API or keep it unchange but disable driver capabilities so that you own the file descriptor not the xserver.
+// - when xf86NewInputDevice() gets called it will run the driver setup upon loading the input driver and then eventually preinit gets called (in agreement with expectations). It should be clear by now that by the time PreInit gets called both the driver and pInfo data structures have some values set, the preinit is expected to modify and add to them but not to initialize all of it (that was the job of udev and the xserver to put the minimal stuff there).
+//
+//
+// TODO
+// Look what xf86AddInput does to pInfo before preinit gets called.
+//
+// Need to find out what sets xf86InputDriverList because that's the list being looked up for the driver for input devices
