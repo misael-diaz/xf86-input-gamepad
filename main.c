@@ -132,6 +132,151 @@ static struct _InputInfoRec *GamepadKeyboardHotplug(
 	return NULL;
 }
 
+static int IsEventDevice(struct dirent const *dir)
+{
+	int rc = 0;
+	char event[] = "event";
+	uint64_t const len = (sizeof(event) - 1);
+	rc = strncmp(dir->d_name, event, len);
+	return ((0 == rc)? 1 : 0);
+}
+
+// TODO: add a cleanup goto to improve readability
+static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
+{
+	errno = 0;
+	int found = 0;
+	int64_t rc = 0;
+	struct dirent **namelist = NULL;
+	char *gamepad = NULL;
+	rc = scandir("/dev/input", &namelist, IsEventDevice, alphasort);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] error: scandir failed to find events\n", GAMEPAD_DRIVER_NAME);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+		return BadRequest;
+	}
+
+	int const devno = rc;
+	for (int i = 0; i != devno; ++i) {
+		if (strstr(namelist[i]->d_name, "js")) {
+			// excludes /dev/input/jsX devices because we don't want to use the legacy linux input joystick API
+			continue;
+		}
+		errno = 0;
+		char devname[PATH_MAX] = "/dev/input/";
+		if (PATH_MAX <= (strlen(devname) + strlen(namelist[i]->d_name) + 1)) {
+			xf86Msg(X_ERROR, "[%s] error: device name truncation\n", GAMEPAD_DRIVER_NAME);
+			for (int i = 0; i != devno; ++i) {
+				free(namelist[i]);
+			}
+			free(namelist);
+			return BadRequest;
+		}
+		strncat(devname, namelist[i]->d_name, PATH_MAX);
+		devname[PATH_MAX - 1] = 0;
+		int const fd = open(devname, O_RDONLY);
+		if (-1 == fd) {
+			xf86Msg(X_ERROR, "[%s] error: failed to open: %s\n", GAMEPAD_DRIVER_NAME, devname);
+			if (errno) {
+				xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+			}
+
+			for (int i = 0; i != devno; ++i) {
+				free(namelist[i]);
+			}
+			free(namelist);
+			return BadRequest;
+		}
+
+		errno = 0;
+		char dev[PATH_MAX];
+		memset(dev, 0, sizeof(dev));
+		uint64_t const len = sizeof(dev);
+		rc = ioctl(fd, EVIOCGNAME(len), dev);
+		if (-1 == rc) {
+			xf86Msg(X_ERROR, "[%s] error: failed to query name of: %s\n", GAMEPAD_DRIVER_NAME, devname);
+			if (errno) {
+				xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+			}
+
+			for (int i = 0; i != devno; ++i) {
+				free(namelist[i]);
+			}
+			free(namelist);
+			return BadRequest;
+		}
+
+		if (!strncmp(drv->device.info_gamepad->name, dev, PATH_MAX)) {
+			errno = 0;
+			uint64_t bit[NBITS(KEY_CNT)];
+			uint64_t code[NBITS(KEY_CNT)];
+			memset(bit, 0, sizeof(bit));
+			memset(code, 0, sizeof(code));
+			rc = ioctl(fd, EVIOCGBIT(0, NBYTES(KEY_CNT)), bit);
+			if (-1 == rc) {
+				xf86Msg(X_ERROR, "[%s] error: failed to probe the bits of: %s\n", GAMEPAD_DRIVER_NAME, devname);
+				if (errno) {
+					xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+				}
+
+				for (int i = 0; i != devno; ++i) {
+					free(namelist[i]);
+				}
+				free(namelist);
+				return BadRequest;
+			}
+
+			if (test_bit(EV_KEY, bit)) {
+				errno = 0;
+				rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES(KEY_CNT)), code);
+				if (-1 == rc) {
+					xf86Msg(X_ERROR, "[%s] error: failed to probe the bits of gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
+					if (errno) {
+						xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+					}
+
+					for (int i = 0; i != devno; ++i) {
+						free(namelist[i]);
+					}
+					free(namelist);
+					return BadRequest;
+				}
+				if (test_bit(BTN_GAMEPAD, code)) {
+					xf86Msg(X_DEBUG, "[%s] detected gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
+					char *gamepad = (char*) (drv->base + drv->offset_devname);
+					memset(gamepad, 0, PATH_MAX);
+					uint64_t const len = strlen(devname);
+					drv->size_devname = (1 + len);
+					if (PATH_MAX <= len) {
+						xf86Msg(X_DEBUG, "[%s] device name length is greater than or equal to PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
+						return BadRequest;
+					}
+					strncpy(gamepad, devname, len);
+					gamepad[len] = 0;
+					close(fd);
+					found = 1;
+					break;
+				}
+			}
+		}
+		close(fd);
+	}
+
+	for (int i = 0; i != devno; ++i) {
+		free(namelist[i]);
+	}
+	free(namelist);
+
+	if (found) {
+		return Success;
+	}
+	else {
+		return BadRequest;
+	}
+}
+
 static int GamepadCorePreInit(
 	struct _InputDriverRec *driver_gamepad,
 	struct _InputInfoRec *info_gamepad,
@@ -168,7 +313,7 @@ static int GamepadCorePreInit(
 	}
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
 	struct _GamepadDriverRec *data = module->TearDownData;
-	data->info_gamepad = info_gamepad;
+	data->device.info_gamepad = info_gamepad;
 	rc = GamepadGetDeviceName(data);
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
@@ -251,151 +396,6 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	.moduleclass = MOD_CLASS_XINPUT,
 	.checksum = {}
 };
-
-static int IsEventDevice(struct dirent const *dir)
-{
-	int rc = 0;
-	char event[] = "event";
-	uint64_t const len = (sizeof(event) - 1);
-	rc = strncmp(dir->d_name, event, len);
-	return ((0 == rc)? 1 : 0);
-}
-
-// TODO: adda cleanup goto to improve readability
-static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
-{
-	errno = 0;
-	int found = 0;
-	int64_t rc = 0;
-	struct dirent **namelist = NULL;
-	char *gamepad = NULL;
-	rc = scandir("/dev/input", &namelist, IsEventDevice, alphasort);
-	if (-1 == rc) {
-		xf86Msg(X_ERROR, "[%s] error: scandir failed to find events\n", GAMEPAD_DRIVER_NAME);
-		if (errno) {
-			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-		}
-		return BadRequest;
-	}
-
-	int const devno = rc;
-	for (int i = 0; i != devno; ++i) {
-		if (strstr(namelist[i]->d_name, "js")) {
-			// excludes /dev/input/jsX devices because we don't want to use the legacy linux input joystick API
-			continue;
-		}
-		errno = 0;
-		char devname[PATH_MAX] = "/dev/input/";
-		if (PATH_MAX <= (strlen(devname) + strlen(namelist[i]->d_name) + 1)) {
-			xf86Msg(X_ERROR, "[%s] error: device name truncation\n", GAMEPAD_DRIVER_NAME);
-			for (int i = 0; i != devno; ++i) {
-				free(namelist[i]);
-			}
-			free(namelist);
-			return BadRequest;
-		}
-		strncat(devname, namelist[i]->d_name, PATH_MAX);
-		devname[PATH_MAX - 1] = 0;
-		int const fd = open(devname, O_RDONLY);
-		if (-1 == fd) {
-			xf86Msg(X_ERROR, "[%s] error: failed to open: %s\n", GAMEPAD_DRIVER_NAME, devname);
-			if (errno) {
-				xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-			}
-
-			for (int i = 0; i != devno; ++i) {
-				free(namelist[i]);
-			}
-			free(namelist);
-			return BadRequest;
-		}
-
-		errno = 0;
-		char dev[PATH_MAX];
-		memset(dev, 0, sizeof(dev));
-		uint64_t const len = sizeof(dev);
-		rc = ioctl(fd, EVIOCGNAME(len), dev);
-		if (-1 == rc) {
-			xf86Msg(X_ERROR, "[%s] error: failed to query name of: %s\n", GAMEPAD_DRIVER_NAME, devname);
-			if (errno) {
-				xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-			}
-
-			for (int i = 0; i != devno; ++i) {
-				free(namelist[i]);
-			}
-			free(namelist);
-			return BadRequest;
-		}
-
-		if (!strncmp(drv->name, dev, PATH_MAX)) {
-			errno = 0;
-			uint64_t bit[NBITS(KEY_CNT)];
-			uint64_t code[NBITS(KEY_CNT)];
-			memset(bit, 0, sizeof(bit));
-			memset(code, 0, sizeof(code));
-			rc = ioctl(fd, EVIOCGBIT(0, NBYTES(KEY_CNT)), bit);
-			if (-1 == rc) {
-				xf86Msg(X_ERROR, "[%s] error: failed to probe the bits of: %s\n", GAMEPAD_DRIVER_NAME, devname);
-				if (errno) {
-					xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-				}
-
-				for (int i = 0; i != devno; ++i) {
-					free(namelist[i]);
-				}
-				free(namelist);
-				return BadRequest;
-			}
-
-			if (test_bit(EV_KEY, bit)) {
-				errno = 0;
-				rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES(KEY_CNT)), code);
-				if (-1 == rc) {
-					xf86Msg(X_ERROR, "[%s] error: failed to probe the bits of gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
-					if (errno) {
-						xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-					}
-
-					for (int i = 0; i != devno; ++i) {
-						free(namelist[i]);
-					}
-					free(namelist);
-					return BadRequest;
-				}
-				if (test_bit(BTN_GAMEPAD, code)) {
-					xf86Msg(X_DEBUG, "[%s] detected gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
-					char *gamepad = (char*) (drv->base + drv->offset_devname);
-					memset(gamepad, 0, PATH_MAX);
-					uint64_t const len = strlen(devname);
-					drv->size_devname = (1 + len);
-					if (PATH_MAX <= len) {
-						xf86Msg(X_DEBUG, "[%s] device name length is greater than or equal to PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
-						return BadRequest;
-					}
-					strncpy(gamepad, devname, len);
-					gamepad[len] = 0;
-					close(fd);
-					found = 1;
-					break;
-				}
-			}
-		}
-		close(fd);
-	}
-
-	for (int i = 0; i != devno; ++i) {
-		free(namelist[i]);
-	}
-	free(namelist);
-
-	if (found) {
-		return Success;
-	}
-	else {
-		return BadRequest;
-	}
-}
 
 // the pointer type is defined as typedef void* pointer in /usr/include/X11/Xdefs.h
 static void *GamepadDriverSetup(
