@@ -173,7 +173,7 @@ static int GamepadCorePreInit(
 	char *devname = (char*) (data->base + data->offset_devname);
 
 	if (!data->size_devname) {
-		xf86Msg(X_DEBUG, "[%s] error: device name was not set during driver setup %s\n", GAMEPAD_DRIVER_NAME);
+		xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: need to implement /dev/input/jsX -> /dev/input/eventX mapping\n", GAMEPAD_DRIVER_NAME);
 		return BadImplementation;
 	}
 	else {
