@@ -376,7 +376,9 @@ static void *GamepadDriverSetup(
 	return NULL;
     }
     uint64_t const pagesz = (typeof(pagesz)) rc;
-    void *base = mmap(NULL, pagesz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    uint64_t const mask_page = (pagesz - 1);
+    uint64_t const size_mmap = (((pagesz + PATH_MAX) + mask_page) & (~mask_page));
+    void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     errno = 0;
     if (MAP_FAILED == base) {
 	xf86Msg(X_ERROR, "[%s] error: failed to map driver data", GAMEPAD_DRIVER_NAME);
@@ -395,6 +397,7 @@ static void *GamepadDriverSetup(
 
     if ((sizeof(*priv) + PATH_MAX) > pagesz) {
 	    xf86Msg(X_ERROR, "[%s] error: insufficient memory-map size\n", GAMEPAD_DRIVER_NAME);
+	    munmap(base, size_mmap);
 	    return NULL;
     }
 
