@@ -118,10 +118,8 @@ static int GamepadOpen(
 ) {
 	// TODO: research probing in joystick device
 	if (info->flags & XI86_SERVER_FD) {
-		if (-1 == info->fd) {
-			xf86Msg(X_ERROR, "[%s] error: xserver should have openned the device by now", GAMEPAD_DRIVER_NAME);
-			return BadImplementation;
-		}
+		xf86Msg(X_ERROR, "[%s] error: driver should own the device file descriptor", GAMEPAD_DRIVER_NAME);
+		return BadImplementation;
 	}
 
 
@@ -179,13 +177,13 @@ static int GamepadCorePreInit(
 	else {
 		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, devname);
 	}
-	if (!(info_gamepad->flags & XI86_SERVER_FD)) {
-		if (-1 == info_gamepad->fd) {
+
+	// TODO: driver owns the device file descriptor so make sure of that
+	if (info_gamepad->flags & XI86_SERVER_FD) {
 			// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
-			xf86Msg(X_DEBUG, "[%s] fd: %d\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
+			xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
 			// TODO lookup /dev/input/eventX for a gamepad and then open file descriptor to the device; this is needed because at this point the caller has tried openning the device but was unable to do so because we are trying to support platforms without systemd. One last thing you don't need to set the options yet that is private to the gamepad (the keyboard probably does not need to know this since it is private data)
 			return BadImplementation;
-		}
 	}
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
@@ -202,7 +200,7 @@ _X_EXPORT struct _InputDriverRec GAMEPAD = {
     .module = NULL,
     .default_options = NULL,
 #ifdef XI86_DRV_CAP_SERVER_FD
-    .capabilities = 0
+    .capabilities = 0 // driver owns the gamepad file descriptor, not the xserver by design
 #endif
 };
 
