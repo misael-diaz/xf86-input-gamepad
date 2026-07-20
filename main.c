@@ -190,13 +190,22 @@ static int GamepadCorePreInit(
 	return BadImplementation;
 }
 
+// a stub for now
+static void GamepadCoreUnInit(
+	struct _InputDriverRec *driver_gamepad,
+	struct _InputInfoRec *info_gamepad,
+	int flags
+) {
+	return;
+}
+
 // TODO: impl Core functions
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
     .driverVersion = 1,
     .driverName = GAMEPAD_DRIVER_NAME,
     .Identify = NULL,
-    .PreInit = NULL,
-    .UnInit = NULL,
+    .PreInit = GamepadCorePreInit,
+    .UnInit = GamepadCoreUnInit,
     .module = NULL,
     .default_options = NULL,
 #ifdef XI86_DRV_CAP_SERVER_FD
