@@ -281,6 +281,12 @@ static int GamepadCorePreInit(
 	int flags
 ) {
 	int rc = 0;
+	char *devname = NULL;
+	char *stored_devname = NULL;
+	char *updated_devname = NULL;
+	struct _ModuleDesc *module = NULL;
+	struct _GamepadModuleRec *mod = NULL;
+	char const * const product_name = info_gamepad->name;
 	struct _InputInfoRec *info_keyboard = NULL;
 	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves in the call stack of this PreInit function)
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
@@ -311,9 +317,8 @@ static int GamepadCorePreInit(
 		rc = BadImplementation;
 		goto error;
 	}
-	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
-	struct _GamepadModuleRec *mod = module->TearDownData;
-	char const * const product_name = info_gamepad->name;
+	module = (typeof(module)) info_gamepad->drv->module;
+	mod = module->TearDownData;
 	rc = GamepadGetDeviceName(mod, product_name);
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
@@ -321,10 +326,10 @@ static int GamepadCorePreInit(
 		goto error;
 	}
 
-	char *devname = (char*) (mod->base + mod->offset_devname);
-	char *stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
+	devname = (typeof(devname)) (mod->base + mod->offset_devname);
+	stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	xf86ReplaceStrOption(info_gamepad->options, "device", strdup(devname));
-	char *updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
+	updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	if (strcmp(updated_devname, devname)) {
 		xf86Msg(X_ERROR, "[%s] error: failed to update device name, expected this: %s but got that: %s\n", GAMEPAD_DRIVER_NAME, devname, updated_devname);
 		rc = BadRequest;
