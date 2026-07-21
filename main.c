@@ -461,7 +461,42 @@ static int GamepadCorePreInit(
 	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly
 	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case.
 
+
+	errno = 0;
+	struct stat st = {};
+	rc = stat(updated_devname, &st);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] failed to query device status\n", GAMEPAD_DRIVER_NAME);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+	}
+
+	// NOTE: using signed 64-bits because stat() stores them as unsigned 32-bits but the xsever stores them as signed 32-bits
+	int64_t const stored_major = info_gamepad->major;
+	int64_t const stored_minor = info_gamepad->minor;
+	int64_t const _major = major(st.st_rdev);
+	int64_t const _minor = minor(st.st_rdev);
+	if (_major != stored_major) {
+		xf86Msg(X_ERROR, "[%s] error: device major check failed stat: %ld dev: %ld\n", GAMEPAD_DRIVER_NAME, _major, stored_major);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		checked_major = 1;
+	}
+
+	if (_minor != stored_minor) {
+		xf86Msg(X_ERROR, "[%s] error: device minor check failed stat: %ld dev: %ld\n", GAMEPAD_DRIVER_NAME, _minor, stored_minor);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		checked_minor = 1;
+	}
+
 	if (!checked_minor || !checked_major || !checked_options || !checked_attrs) {
+		xf86Msg(X_ERROR, "[%s] error: driver missed one of the checks\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
 		goto error;
 	}
