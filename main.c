@@ -288,7 +288,8 @@ static int GamepadCorePreInit(
 		if (!strcmp(src, "_driver/joystick")) {
 			// TODO implement PreInit for keyboard device
 			xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: kdbPreInit not implemented\n", GAMEPAD_DRIVER_NAME);
-			return BadImplementation;
+			rc = BadImplementation;
+			goto error;
 		}
 		else {
 			xf86Msg(X_DEBUG, "[%s] _source: %s\n", GAMEPAD_DRIVER_NAME, src);
@@ -307,7 +308,8 @@ static int GamepadCorePreInit(
 	} else {
 		// NOTE: should have been set by xf86AddInput() right before calling this PreInit function; see call stack: NewInputDeviceRequest() -> xf86NewInputDevice() -> xf86AddInput() -> drv->PreInit()
 		xf86Msg(X_DEBUG, "[%s] driver: %s\n", GAMEPAD_DRIVER_NAME, "UNKNOWN");
-		return BadImplementation;
+		rc = BadImplementation;
+		goto error;
 	}
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
 	struct _GamepadModuleRec *mod = module->TearDownData;
@@ -315,7 +317,8 @@ static int GamepadCorePreInit(
 	rc = GamepadGetDeviceName(mod, product_name);
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
-		return BadRequest;
+		rc = BadRequest;
+		goto error;
 	}
 
 	char *devname = (char*) (mod->base + mod->offset_devname);
@@ -324,7 +327,8 @@ static int GamepadCorePreInit(
 	char *updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	if (strcmp(updated_devname, devname)) {
 		xf86Msg(X_ERROR, "[%s] error: failed to update device name, expected this: %s but got that: %s\n", GAMEPAD_DRIVER_NAME, devname, updated_devname);
-		return BadRequest;
+		rc = BadRequest;
+		goto error;
 	}
 	else {
 		xf86Msg(X_DEBUG, "[%s] debug: updated device name from: %s to: %s\n", GAMEPAD_DRIVER_NAME, stored_devname, updated_devname);
@@ -332,7 +336,8 @@ static int GamepadCorePreInit(
 
 	if (!mod->size_devname) {
 		xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: need to implement /dev/input/jsX -> /dev/input/eventX mapping\n", GAMEPAD_DRIVER_NAME);
-		return BadImplementation;
+		rc = BadImplementation;
+		goto error;
 	}
 	else {
 		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, devname);
@@ -343,7 +348,8 @@ static int GamepadCorePreInit(
 		// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
 		xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
 		// TODO lookup /dev/input/eventX for a gamepad and then open file descriptor to the device; this is needed because at this point the caller has tried openning the device but was unable to do so because we are trying to support platforms without systemd. One last thing you don't need to set the options yet that is private to the gamepad (the keyboard probably does not need to know this since it is private data)
-		return BadImplementation;
+		rc = BadImplementation;
+		goto error;
 	}
 
 	// TODO
@@ -352,7 +358,29 @@ static int GamepadCorePreInit(
 	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case.
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
-	return BadImplementation;
+	rc = BadImplementation;
+
+error: {
+	       if (src) {
+		       free(src);
+		       src = NULL;
+	       }
+
+	       if (stored_devname) {
+		       free(stored_name);
+		       stored_name = NULL;
+	       }
+
+	       if (updated_devname) {
+		       free(updated_name);
+		       updated_name = NULL;
+	       }
+
+	       if (!rc) {
+		       rc = BadImplementation;
+	       }
+	       return rc;
+       }
 }
 
 // clears private data and delete the gamepad input info structure (this is what the xserver expects and if we don't provide any UnInit function it will call xf86DeleteInput() on our behalf and so it expects us to do it ourselves when we do provide a UnInit() function)
