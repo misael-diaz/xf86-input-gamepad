@@ -92,7 +92,6 @@ typedef int (*GamepadReadFn)(
 
 // TODO: instead of a char* for devname use a suitable offset for holding the device name, this is far better than using a pointer and having to free() the memory of devname
 struct _GamepadDevRec {
-	struct _GamepadDriverRec *driver;
 	GamepadOpenFn open;
 	GamepadCloseFn close;
 	GamepadReadFn read;
@@ -105,12 +104,11 @@ struct _GamepadDevRec {
 	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
 };
 
-struct _GamepadDriverRec {
+struct _GamepadModuleRec {
     uintptr_t base;
     uint64_t size;
     uint64_t offset_devname;
     uint64_t size_devname;
-    struct _GamepadDevRec device;
 };
 
 static int GamepadOpen(
@@ -142,7 +140,7 @@ static int IsEventDevice(struct dirent const *dir)
 }
 
 // TODO: add a cleanup goto to improve readability
-static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
+static int GamepadGetDeviceName(struct _GamepadModuleRec *drv, char const * const product_name)
 {
 	errno = 0;
 	int found = 0;
@@ -208,7 +206,7 @@ static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
 			return BadRequest;
 		}
 
-		if (!strncmp(drv->device.info_gamepad->name, dev, PATH_MAX)) {
+		if (!strncmp(product_name, dev, PATH_MAX)) {
 			errno = 0;
 			uint64_t bit[NBITS(KEY_CNT)];
 			uint64_t code[NBITS(KEY_CNT)];
@@ -312,9 +310,9 @@ static int GamepadCorePreInit(
 		return BadImplementation;
 	}
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
-	struct _GamepadDriverRec *data = module->TearDownData;
-	data->device.info_gamepad = info_gamepad;
-	rc = GamepadGetDeviceName(data);
+	struct _GamepadModuleRec *data = module->TearDownData;
+	char const * const product_name = info_gamepad->name;
+	rc = GamepadGetDeviceName(data, product_name);
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
 		return BadRequest;
@@ -359,13 +357,12 @@ static void GamepadCoreUnInit(
 	int flags
 ) {
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
-	struct _GamepadDriverRec *data = module->TearDownData;
+	struct _GamepadModuleRec *data = module->TearDownData;
 	if (data) {
 		// we clear /dev/input/eventX because next time the drivers get called it would probably change and so the right thing to do is to clear it out
 		data->size_devname = 0;
 		char *devname = (typeof(devname)) (data->base + data->offset_devname);
 		memset(devname, 0, PATH_MAX);
-		data->device.info_gamepad = NULL;
 	}
 	else {
 		// NOTE: for now I have not seen what makes the server to drop the input-driver module and so the teardown data should be present even if PreInit fails in other tries (meaning that the server was still up we tried to run PreInit but failed, that won't kill the server of course, so we can still try again and the module data teardown should still be there)
@@ -394,7 +391,7 @@ _X_EXPORT struct _InputDriverRec GAMEPAD = {
 static void GamepadDriverTeardown(void *p)
 {
 	errno = 0;
-	struct _GamepadDriverRec *priv = (typeof(priv)) p;
+	struct _GamepadModuleRec *priv = (typeof(priv)) p;
 	void *base = (typeof(base)) priv->base;
 	uint64_t size = (typeof(size)) priv->size;
 	int rc = munmap(base, size);
@@ -441,7 +438,7 @@ static void *GamepadDriverSetup(
     uint64_t const pagesz = (typeof(pagesz)) rc;
     uint64_t const mask_page = (pagesz - 1);
     uint64_t const size_mmap = (((pagesz + PATH_MAX) + mask_page) & (~mask_page));
-    void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     errno = 0;
     if (MAP_FAILED == base) {
 	xf86Msg(X_ERROR, "[%s] error: failed to map driver data", GAMEPAD_DRIVER_NAME);
@@ -451,11 +448,9 @@ static void *GamepadDriverSetup(
         return NULL;
     }
 
-    struct _GamepadDriverRec *priv = (typeof(priv)) base;
+    struct _GamepadModuleRec *priv = (typeof(priv)) base;
     priv->base = (uintptr_t) base;
     priv->size = (typeof(priv->size)) size_mmap;
-    priv->device.driver = priv;
-    priv->device.fd = -1;
     priv->offset_devname = ((sizeof(*priv) + 63) & (~63));
     priv->size_devname = 0;
 
