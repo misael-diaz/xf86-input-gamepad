@@ -349,6 +349,7 @@ static int GamepadCorePreInit(
 	// TODO
 	// - log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called
 	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly
+	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case.
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
 	return BadImplementation;
