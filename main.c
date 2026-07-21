@@ -140,7 +140,7 @@ static int IsEventDevice(struct dirent const *dir)
 }
 
 // TODO: add a cleanup goto to improve readability
-static int GamepadGetDeviceName(struct _GamepadModuleRec *drv, char const * const product_name)
+static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * const product_name)
 {
 	errno = 0;
 	int found = 0;
@@ -243,10 +243,10 @@ static int GamepadGetDeviceName(struct _GamepadModuleRec *drv, char const * cons
 				}
 				if (test_bit(BTN_GAMEPAD, code)) {
 					xf86Msg(X_DEBUG, "[%s] detected gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
-					char *gamepad = (char*) (drv->base + drv->offset_devname);
+					char *gamepad = (char*) (mod->base + mod->offset_devname);
 					memset(gamepad, 0, PATH_MAX);
 					uint64_t const len = strlen(devname);
-					drv->size_devname = (1 + len);
+					mod->size_devname = (1 + len);
 					if (PATH_MAX <= len) {
 						xf86Msg(X_DEBUG, "[%s] device name length is greater than or equal to PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
 						return BadRequest;
