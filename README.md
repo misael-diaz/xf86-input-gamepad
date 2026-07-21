@@ -107,6 +107,8 @@ Section "InputClass"
 EndSection
 ```
 
+note that we use MathDevicePath to identify the gamepad driver only and this is why we use `/dev/input/js*` because that's what `udev` is going to report to the xserver when the gamepad is connected to the computer.
+
 ## Build
 
 The following command builds the driver as a shared object (\*.so) that the xserver can load:
