@@ -310,15 +310,15 @@ static int GamepadCorePreInit(
 		return BadImplementation;
 	}
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
-	struct _GamepadModuleRec *data = module->TearDownData;
+	struct _GamepadModuleRec *mod = module->TearDownData;
 	char const * const product_name = info_gamepad->name;
-	rc = GamepadGetDeviceName(data, product_name);
+	rc = GamepadGetDeviceName(mod, product_name);
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
 		return BadRequest;
 	}
 
-	char *devname = (char*) (data->base + data->offset_devname);
+	char *devname = (char*) (mod->base + mod->offset_devname);
 	char *stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	xf86ReplaceStrOption(info_gamepad->options, "device", strdup(devname));
 	char *updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
@@ -330,7 +330,7 @@ static int GamepadCorePreInit(
 		xf86Msg(X_DEBUG, "[%s] debug: updated device name from: %s to: %s\n", GAMEPAD_DRIVER_NAME, stored_devname, updated_devname);
 	}
 
-	if (!data->size_devname) {
+	if (!mod->size_devname) {
 		xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: need to implement /dev/input/jsX -> /dev/input/eventX mapping\n", GAMEPAD_DRIVER_NAME);
 		return BadImplementation;
 	}
@@ -357,11 +357,11 @@ static void GamepadCoreUnInit(
 	int flags
 ) {
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
-	struct _GamepadModuleRec *data = module->TearDownData;
-	if (data) {
+	struct _GamepadModuleRec *mod = module->TearDownData;
+	if (mod) {
 		// we clear /dev/input/eventX because next time the drivers get called it would probably change and so the right thing to do is to clear it out
-		data->size_devname = 0;
-		char *devname = (typeof(devname)) (data->base + data->offset_devname);
+		mod->size_devname = 0;
+		char *devname = (typeof(devname)) (mod->base + mod->offset_devname);
 		memset(devname, 0, PATH_MAX);
 	}
 	else {
