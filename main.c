@@ -174,7 +174,7 @@ static int GamepadGetDeviceName(struct _GamepadDriverRec *drv)
 			free(namelist);
 			return BadRequest;
 		}
-		strncat(devname, namelist[i]->d_name, PATH_MAX);
+		strncat(devname, namelist[i]->d_name, PATH_MAX - 1);
 		devname[PATH_MAX - 1] = 0;
 		int const fd = open(devname, O_RDONLY);
 		if (-1 == fd) {
