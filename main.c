@@ -292,6 +292,7 @@ static int GamepadCorePreInit(
 	struct _GamepadModuleRec *mod = NULL;
 	char const * const product_name = info_gamepad->name;
 	struct _XF86OptionRec *iopts = NULL;
+	struct _InputAttributes *iattrs = NULL;
 	struct _InputInfoRec *info_keyboard = NULL;
 	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves in the call stack of this PreInit function)
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
@@ -502,6 +503,10 @@ static int GamepadCorePreInit(
 		iopts = xf86NextOption(iopts);
 		checked_options = 1;
 	}
+
+	iattrs = info_gamepad->attrs;
+	xf86Msg(X_DEBUG, "[%s] option: product: %s vendor: %s device: %s\n", GAMEPAD_DRIVER_NAME, iattrs->product, iattrs->vendor, iattrs->device);
+	checked_attrs = 1;
 
 	if (!checked_minor || !checked_major || !checked_options || !checked_attrs) {
 		xf86Msg(X_ERROR, "[%s] error: driver missed one of the checks\n", GAMEPAD_DRIVER_NAME);
