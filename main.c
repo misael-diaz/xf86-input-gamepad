@@ -346,6 +346,8 @@ static int GamepadCorePreInit(
 		return BadImplementation;
 	}
 
+	// TODO log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called
+
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
 	return BadImplementation;
 }
