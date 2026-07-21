@@ -366,6 +366,8 @@ static int GamepadCorePreInit(
 	rc = BadImplementation;
 
 error: {
+	       // NOTE: devname is not malloc'd and so we don't need to free it
+
 	       if (src) {
 		       free(src);
 		       src = NULL;
