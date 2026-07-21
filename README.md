@@ -115,6 +115,20 @@ The following command builds the driver as a shared object (\*.so) that the xser
 gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -fPIC -shared -O0 -gdwarf-4 -g main.c -o gamepad.so
 ```
 
+Don't forget to update the module (`*.so`) in the location where the xserver expectes the input driver modules. In my system that location is
+
+
+```sh
+/usr/lib/xorg/modules/input
+```
+
+and don't forget to update the owner and file permissions
+
+```sh
+chown root.root gamepad.so
+chmod 644 gamepad.so
+```
+
 ## Debugging
 
 The way I am debugging the driver is by starting the xserver with `gdbserver`:
