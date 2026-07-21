@@ -346,7 +346,9 @@ static int GamepadCorePreInit(
 		return BadImplementation;
 	}
 
-	// TODO log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called
+	// TODO
+	// - log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called
+	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
 	return BadImplementation;
