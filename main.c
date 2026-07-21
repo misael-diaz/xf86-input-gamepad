@@ -321,6 +321,16 @@ static int GamepadCorePreInit(
 	}
 
 	char *devname = (char*) (data->base + data->offset_devname);
+	char *stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
+	xf86ReplaceStrOption(info_gamepad->options, "device", strdup(devname));
+	char *updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
+	if (strcmp(updated_devname, devname)) {
+		xf86Msg(X_ERROR, "[%s] error: failed to update device name, expected this: %s but got that: %s\n", GAMEPAD_DRIVER_NAME, devname, updated_devname);
+		return BadRequest;
+	}
+	else {
+		xf86Msg(X_DEBUG, "[%s] debug: updated device name from: %s to: %s\n", GAMEPAD_DRIVER_NAME, stored_devname, updated_devname);
+	}
 
 	if (!data->size_devname) {
 		xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: need to implement /dev/input/jsX -> /dev/input/eventX mapping\n", GAMEPAD_DRIVER_NAME);
