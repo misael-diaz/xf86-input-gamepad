@@ -365,6 +365,7 @@ static void GamepadCoreUnInit(
 		data->size_devname = 0;
 		char *devname = (typeof(devname)) (data->base + data->offset_devname);
 		memset(devname, 0, PATH_MAX);
+		data->device.info_gamepad = NULL;
 	}
 	else {
 		// NOTE: for now I have not seen what makes the server to drop the input-driver module and so the teardown data should be present even if PreInit fails in other tries (meaning that the server was still up we tried to run PreInit but failed, that won't kill the server of course, so we can still try again and the module data teardown should still be there)
