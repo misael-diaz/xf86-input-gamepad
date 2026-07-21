@@ -103,7 +103,7 @@ Section "InputClass"
 	Identifier "gamepad"
 	Driver "gamepad"
 	MatchIsJoystick "on"
-	MatchDevicePath "/dev/input/event*"
+	MatchDevicePath "/dev/input/js*"
 EndSection
 ```
 
