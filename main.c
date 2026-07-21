@@ -367,13 +367,13 @@ error: {
 	       }
 
 	       if (stored_devname) {
-		       free(stored_name);
-		       stored_name = NULL;
+		       free(stored_devname);
+		       stored_devname = NULL;
 	       }
 
 	       if (updated_devname) {
-		       free(updated_name);
-		       updated_name = NULL;
+		       free(updated_devname);
+		       updated_devname = NULL;
 	       }
 
 	       if (!rc) {
