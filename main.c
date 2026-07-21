@@ -281,6 +281,10 @@ static int GamepadCorePreInit(
 	int flags
 ) {
 	int rc = 0;
+	int checked_minor = 0;
+	int checked_major = 0;
+	int checked_options = 0;
+	int checked_attrs = 0;
 	char *devname = NULL;
 	char *stored_devname = NULL;
 	char *updated_devname = NULL;
@@ -302,13 +306,28 @@ static int GamepadCorePreInit(
 		}
 	}
 
+	if (!info_gamepad->name) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected `name` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
+	if (!info_gamepad->driver) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected `driver` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
+	if (info_gamepad->flags & XI86_SERVER_FD) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected to manage the device file descriptor:\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
 	info_gamepad->device_control = NULL; // TODO impl GamepadCoreControl
 	info_gamepad->read_input = NULL; // TODO impl GamepadCoreRead
 	info_gamepad->control_proc = NULL; // NOTE: `control_proc` only needed if we intend to support DEVICE_CORE, DEVICE_ABS_CALIB, DEVICE_ABS_AREA (this is what I know from reading the xserver source code but what modes are these are still elusive TODO: research this)
 	info_gamepad->switch_mode = NULL; // NOTE: only needed for devices that can switch reporting relative to absolute position
-	info_gamepad->dev = NULL; // NOTE: set by AddInputDevice()
-	info_gamepad->private = NULL;
-	info_gamepad->type_name = XI_JOYSTICK;
 	if (info_gamepad->drv) {
 		xf86Msg(X_DEBUG, "[%s] driver: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->drv->driverName);
 	} else {
@@ -317,6 +336,86 @@ static int GamepadCorePreInit(
 		rc = BadImplementation;
 		goto error;
 	}
+
+	if (-1 != info_gamepad->fd) {
+		xf86Msg(X_DEBUG, "[%s] driver: did not expected to find a valid file descriptor fd: %d\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		info_gamepad->fd = -1;
+		xf86Msg(X_DEBUG, "[%s] driver: initializing file descriptor to %d\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
+	}
+
+	if (!info_gamepad->major) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected device major to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		// TODO: check device major
+	}
+
+	if (!info_gamepad->minor) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected device minor to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		// TODO: check device minor
+	}
+
+	if (info_gamepad->dev) {
+		xf86Msg(X_DEBUG, "[%s] driver: did not expect `dev` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		info_gamepad->dev = NULL; // NOTE: set by AddInputDevice() later
+	}
+
+	if (info_gamepad->private) {
+		xf86Msg(X_DEBUG, "[%s] driver: did not expect `private` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		info_gamepad->private = NULL;
+	}
+
+	if (info_gamepad->type_name) {
+		xf86Msg(X_DEBUG, "[%s] driver: did not expect `type_name` field to be set type_name: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->type_name);
+		rc = BadImplementation;
+		goto error;
+	}
+	else {
+		info_gamepad->type_name = XI_JOYSTICK;
+	}
+
+	if (!info_gamepad->drv) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected `drv` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
+	if (!info_gamepad->module) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected `module` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
+	if (!info_gamepad->options) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected `options` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
+	if (!info_gamepad->attrs) {
+		xf86Msg(X_DEBUG, "[%s] driver: expected `attrs` field to be set\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		goto error;
+	}
+
 	module = (typeof(module)) info_gamepad->drv->module;
 	mod = module->TearDownData;
 	rc = GamepadGetDeviceName(mod, product_name);
@@ -361,6 +460,11 @@ static int GamepadCorePreInit(
 	// - log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called
 	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly
 	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case.
+
+	if (!checked_minor || !checked_major || !checked_options || !checked_attrs) {
+		rc = BadImplementation;
+		goto error;
+	}
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
 	rc = BadImplementation;
