@@ -75,6 +75,7 @@ enum _GAMEPADEVENT {
     EVENT_AXIS
 };
 
+struct _GamepadDevRec;
 typedef int (*GamepadOpenFn)(
 	struct _GamepadDevRec *gamepad,
 	Bool probe
