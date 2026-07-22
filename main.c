@@ -1,4 +1,5 @@
 #include <linux/input.h>
+#include <sys/sysmacros.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
