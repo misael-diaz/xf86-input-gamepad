@@ -121,7 +121,7 @@ static int GamepadOpen(
 		return BadImplementation;
 	}
 
-
+	return -1;
 }
 
 static struct _InputInfoRec *GamepadKeyboardHotplug(
