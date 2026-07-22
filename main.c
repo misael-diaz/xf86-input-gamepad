@@ -566,6 +566,12 @@ static void GamepadCoreUnInit(
 }
 
 // TODO: impl Core functions
+//
+// `_X_EXPORT' is defined in X11/Xfuncproto.h:
+//
+// #DEFINE _X_EXPORT __attribute__((visibility("default")))
+//
+// from gcc.gnu.org/onlinedocs this means that on ELF the declaration is visible to other modules and, in shared libraries, and it also means that the declared entity may be overridden
 _X_EXPORT struct _InputDriverRec GAMEPAD = {
     .driverVersion = 1,
     .driverName = GAMEPAD_DRIVER_NAME,
