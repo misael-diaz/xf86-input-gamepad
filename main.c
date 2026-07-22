@@ -349,22 +349,14 @@ static int GamepadCorePreInit(
 		xf86Msg(X_DEBUG, "[%s] driver: initializing file descriptor to %d\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
 	}
 
-	if (!info_gamepad->major) {
+	if (!info_gamepad->major && !info_gamepad->minor) {
+		// if both are zero that means that xf86NewInputDevice() did not call xf86stat() to query the device major and minor values and that would be surprising
 		xf86Msg(X_DEBUG, "[%s] driver: expected device major to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
 		goto error;
 	}
 	else {
 		// TODO: check device major
-	}
-
-	if (!info_gamepad->minor) {
-		xf86Msg(X_DEBUG, "[%s] driver: expected device minor to be set\n", GAMEPAD_DRIVER_NAME);
-		rc = BadImplementation;
-		goto error;
-	}
-	else {
-		// TODO: check device minor
 	}
 
 	if (info_gamepad->dev) {
