@@ -28,6 +28,7 @@
 #include <xorg/xf86Modes.h>
 #include <xorg/xf86Opt.h>
 #include <xorg/xkbsrv.h>
+#include <xorg/optionstr.h>
 
 #define GAMEPAD_DRIVER_NAME "gamepad"
 #define GAMEPAD_MODULE_NAME (GAMEPAD_DRIVER_NAME)
@@ -43,6 +44,7 @@
 // https://gitlab.freedesktop.org/xorg/driver/xf86-input-joystick
 
 // NOTE: this way we know the lowerbounds of the strings that we concatenate into
+_Static_assert(sizeof(struct _InputOption) == sizeof(struct _XF86OptionRec));
 _Static_assert(sizeof(struct dirent) > 256);
 _Static_assert(sizeof(long) == sizeof(int64_t));
 _Static_assert(sizeof(int64_t) == 8);
@@ -293,7 +295,7 @@ static int GamepadCorePreInit(
 	struct _ModuleDesc *module = NULL;
 	struct _GamepadModuleRec *mod = NULL;
 	char const * const product_name = info_gamepad->name;
-	struct _XF86OptionRec *iopts = NULL;
+	XF86OptionPtr iopts = NULL; // NOTE: I would prefer to write `struct _XF86OptionRec*` but then I would also have to cast iopts to `struct _InputOption` when calling xf86NextOption; so by letting go of my own convention I am letting the compiler know that these two are aliases by using the xorg typedef `XF86OptionPtr`.
 	struct _InputAttributes *iattrs = NULL;
 	struct _InputInfoRec *info_keyboard = NULL;
 	// NOTE: catches PreInit for the underlying keyboard device (happens when we call NewInputDeviceRequest() ourselves in the call stack of this PreInit function)
@@ -491,7 +493,7 @@ static int GamepadCorePreInit(
 		checked_minor = 1;
 	}
 
-	iopts = info_gamepad->options;
+	iopts = (typeof(iopts)) info_gamepad->options;
 	while (iopts) {
 		xf86Msg(X_DEBUG, "[%s] option: key: %s value: %s\n", GAMEPAD_DRIVER_NAME, iopts->opt_name, iopts->opt_val);
 		iopts = xf86NextOption(iopts);
