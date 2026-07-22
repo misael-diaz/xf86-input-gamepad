@@ -115,7 +115,7 @@ note that we use MathDevicePath to identify the gamepad driver only and this is 
 The following command builds the driver as a shared object (\*.so) that the xserver can load:
 
 ```sh
-gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -fPIC -shared -O0 -gdwarf-4 -g main.c -o gamepad.so
+gcc -I/usr/include/pixman-1 -Wall -Wextra -Wformat -Wno-comment -fPIC -shared -O0 -gdwarf-4 -g main.c -o gamepad.so
 ```
 
 Don't forget to update the module (`*.so`) in the location where the xserver expectes the input driver modules. In my system that location is
