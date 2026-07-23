@@ -472,8 +472,8 @@ static int GamepadCorePreInit(
 	// NOTE: using signed 64-bits because stat() stores them as unsigned 32-bits but the xsever stores them as signed 32-bits
 	int64_t const stored_major = info_gamepad->major;
 	int64_t const stored_minor = info_gamepad->minor;
-	int64_t const _major = major(st.st_rdev);
-	int64_t const _minor = minor(st.st_rdev);
+	int64_t const _major = major(st.st_dev);
+	int64_t const _minor = minor(st.st_dev);
 	if (_major != stored_major) {
 		xf86Msg(X_ERROR, "[%s] error: device major check failed stat: %ld dev: %ld\n", GAMEPAD_DRIVER_NAME, _major, stored_major);
 		rc = BadImplementation;
