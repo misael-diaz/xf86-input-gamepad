@@ -556,6 +556,7 @@ static void GamepadCoreUnInit(
 		xf86Msg(X_ERROR, "[%s] error: missing teardown data\n", GAMEPAD_DRIVER_NAME);
 	}
 
+	// FIXME: not sure if this can be done, info_gamepad has a duplicate module, and that's what will get freed when we call xf86DeleteInput(), leaving the driver module on memory and so the GamepadDriverSetup() will only run once. What I wanted was to run the teardown procedure in hope that when the gamepad is plugged in again we get a (possibly) new driver module (in case we updated the driver in the /usr/lib/xorg/modules/input directory); however this has not worked so far. I tried deleting the duplicate but the xserver crashes and cannot recover in the sense that systemd will bring it up and it will crash again because an error from my part or maybe because the server no longer supports calling the teardown procedure for reasons I have yet to find out. So if I want to test the modified driver I have to restart the computer because killing the process does not have the desired effect of forcing the server to load the input drivers again. Have confirmed that the xserver does not call the setup procedure again.
 	xf86DeleteInput(info_gamepad, 0);
 	return;
 }
