@@ -364,9 +364,6 @@ static int GamepadCorePreInit(
 		rc = BadImplementation;
 		goto error;
 	}
-	else {
-		// TODO: check device major
-	}
 
 	if (info_gamepad->dev) {
 		xf86Msg(X_DEBUG, "[%s] driver: did not expect `dev` field to be set\n", GAMEPAD_DRIVER_NAME);
@@ -449,25 +446,23 @@ static int GamepadCorePreInit(
 		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, devname);
 	}
 
-	// TODO: driver owns the device file descriptor so make sure of that
+	// TODO: driver owns the device file descriptor so make sure that driver capabilities is zero
 	if (info_gamepad->flags & XI86_SERVER_FD) {
 		// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
 		xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
-		// TODO lookup /dev/input/eventX for a gamepad and then open file descriptor to the device; this is needed because at this point the caller has tried openning the device but was unable to do so because we are trying to support platforms without systemd. One last thing you don't need to set the options yet that is private to the gamepad (the keyboard probably does not need to know this since it is private data)
 		rc = BadImplementation;
 		goto error;
 	}
 
 	// TODO
-	// - log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called
-	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly
-	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case.
+	// - log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called. DONE
+	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly. YES WE NEED TO FREE
+	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case. IT DOES NOT STEP INTO THE SETUP PROCEDURE BECAUSE DRIVERS ARE CACHED AND BECAUSE THE MODULE IS A DUPLICATE AND SO THE TEARDOWN PROCEDURE IS NEVER CALLED WHILE THE XSERVER IS RUNNING NORMALLY.
 
 
 	errno = 0;
 	struct statx stx = {};
 	int const ignore_dirfd = -1; // the kernel will ignore it because we are providing a full path
-	// TODO: check the major and minor with GDB for the /dev/input/jsX and /dev/input/eventX devices to see if you get a match against what udev reports
 	rc = statx(ignore_dirfd, updated_devname, 0, STATX_BASIC_STATS, &stx);
 	if (-1 == rc) {
 		xf86Msg(X_ERROR, "[%s] failed to query device status: %s\n", GAMEPAD_DRIVER_NAME, updated_devname);
@@ -482,7 +477,7 @@ static int GamepadCorePreInit(
 	info_gamepad->minor = _ev_minor;
 	xf86ReplaceIntOption(info_gamepad->options, "major", info_gamepad->major);
 	xf86ReplaceIntOption(info_gamepad->options, "minor", info_gamepad->minor);
-	// TODO options "config_options" set by udev needs to be updated perhaps because it's tied to the /dev/input/jsX device instead of the /dev/input/eventX device
+	// TODO options "config_info" set by udev needs to be updated perhaps because it's tied to the /dev/input/jsX device instead of the /dev/input/eventX device and this is entirely up to you because this won't affect udev events (device_added and device_removed) the format for the syspath is `/sys/dev/{block,char}/<maj>:<min> link` and that is defined in systemd/src/libsystemd/sd-device/sd-device.c.
 
 	// NOTE: using signed 64-bits because stat() stores them as unsigned 32-bits but the xsever stores them as signed 32-bits
 	xf86Msg(X_DEBUG, "[%s] device major: %ld minor: %ld\n", GAMEPAD_DRIVER_NAME, _ev_major, _ev_minor);
