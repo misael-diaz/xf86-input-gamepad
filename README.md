@@ -52,9 +52,13 @@ Mostly reading the Xserver source code and also the xf86-input-joystick implemen
 ### Week 3 Driver Pre-Initialization
 
 - **debugging**: debugging the xserver as it is running is totally a game changer because I can see what the server does just before it calls the driver. The xserver is a massive codebase and so reading alone is not enough, though I am starting to develop a mental model of what the server does when I plugin the gamepad device.
+
 - **mapping device**: udev reports the /dev/input/jsX device when I plug the gamepad and this not what we want because if we used it we would be using the legacy linux input API for joysticks. Instead during PreInit we find the /dev/input/eventX device that matches the device name that udev finds. It's important to take into account that the xserver polls udev socket to know when devices are plugged in and removed. This work in particular was completed in commit [d068c1c5](https://github.com/misael-diaz/xf86-input-gamepad/tree/d068c1c5a48bbbce4d9ebab0f325c50bc489cf27).
+
 - **mod races**: have realized that using the module data for storing device info is not a good idea and can lead to data race issues and even make it impossible to support multiple gamepads at the same time. The proper approach is to use the `private` field of the device record to store the data instead, that's what other developers have used to store the device data and it's the right call. Have realized that myself by thinking about the problem not by asking an LLM about it. This has been done in commit [47cc0181](https://github.com/misael-diaz/xf86-input-gamepad/tree/47cc0181157c804a4ec25aca0092ccd8df02989b)
+
 -**server loads drivers once**: dynamic unloading of input drivers is not supported by the xserver even if the API looks at first like it does. The driver setup is called during startup, period. Removing a device only frees duplicate driver data, and this does not trigger calling the teardown procedure because the xserver is designed to work with the duplicated driver.
+
 - **hotloading**: managed to implement input driver hotloading by changing the driver name just before deleting the input driver. Note that the code is modifying the internal input driver that the xserver uses when looking up input drivers. The code uses the same input-driver lookup function to get direct access: commit [4455fc74](https://github.com/misael-diaz/xf86-input-gamepad/tree/4455fc74be50ea089e7cc898eadaeb0e2329a7f0). I have not seen other drivers implement hotloading because it is not how the xserver operates but this is fine for debugging drivers.
 
 ## Requirements
