@@ -479,8 +479,7 @@ static int GamepadCorePreInit(
 	xf86ReplaceIntOption(info_gamepad->options, "minor", info_gamepad->minor);
 	// TODO options "config_info" set by udev needs to be updated perhaps because it's tied to the /dev/input/jsX device instead of the /dev/input/eventX device and this is entirely up to you because this won't affect udev events (device_added and device_removed) the format for the syspath is `/sys/dev/{block,char}/<maj>:<min> link` and that is defined in systemd/src/libsystemd/sd-device/sd-device.c.
 
-	// NOTE: using signed 64-bits because stat() stores them as unsigned 32-bits but the xsever stores them as signed 32-bits
-	xf86Msg(X_DEBUG, "[%s] device major: %ld minor: %ld\n", GAMEPAD_DRIVER_NAME, _ev_major, _ev_minor);
+	xf86Msg(X_DEBUG, "[%s] device major: %d minor: %d\n", GAMEPAD_DRIVER_NAME, _ev_major, _ev_minor);
 	updated_major = 1;
 	updated_minor = 1;
 
