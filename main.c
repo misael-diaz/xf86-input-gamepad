@@ -117,7 +117,9 @@ struct _GamepadModuleRec {
     uint64_t size_devname;
 };
 
+#if DEVBUILD
 static char const * const stub = GAMEPAD_DRIVER_NAME_STUB;
+#endif
 
 static int GamepadOpen(
 	struct _InputInfoRec *info
@@ -560,9 +562,11 @@ static void GamepadCoreUnInit(
 		xf86Msg(X_ERROR, "[%s] error: missing teardown data\n", GAMEPAD_DRIVER_NAME);
 	}
 
+#if DEVBUILD
 	// NOTE: clearing the driver name makes it possible to trigger an input-driver hotloading, no need to duplicate the empty string
 	struct _InputDriverRec *drv = xf86LookupInputDriver(info_gamepad->drv->driverName);
 	drv->driverName = stub;
+#endif
 	xf86DeleteInput(info_gamepad, 0);
 	return;
 }
