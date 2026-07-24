@@ -1,9 +1,8 @@
 #include <linux/input.h>
-#include <sys/sysmacros.h>
+#include <linux/stat.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -466,37 +465,36 @@ static int GamepadCorePreInit(
 
 
 	errno = 0;
-	struct stat st = {};
-	rc = stat(updated_devname, &st);
+	struct statx stx = {};
+	int const ignore_dirfd = -1; // the kernel will ignore it because we are providing a full path
+	// TODO: check the major and minor with GDB for the /dev/input/jsX and /dev/input/eventX devices to see if you get a match against what udev reports
+	rc = statx(ignore_dirfd, updated_devname, 0, STATX_BASIC_STATS, &stx);
 	if (-1 == rc) {
-		xf86Msg(X_ERROR, "[%s] failed to query device status\n", GAMEPAD_DRIVER_NAME);
+		xf86Msg(X_ERROR, "[%s] failed to query device status: %s\n", GAMEPAD_DRIVER_NAME, updated_devname);
 		if (errno) {
 			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
 		}
 	}
 
+	int64_t const _ev_major = stx.stx_rdev_major;
+	int64_t const _ev_minor = stx.stx_rdev_minor;
+
+	rc = statx(ignore_dirfd, stored_devname, 0, STATX_BASIC_STATS, &stx);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] failed to query device status: %s\n", GAMEPAD_DRIVER_NAME, stored_devname);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+	}
+	int64_t const _js_major = stx.stx_rdev_major;
+	int64_t const _js_minor = stx.stx_rdev_minor;
+
 	// NOTE: using signed 64-bits because stat() stores them as unsigned 32-bits but the xsever stores them as signed 32-bits
 	int64_t const stored_major = info_gamepad->major;
 	int64_t const stored_minor = info_gamepad->minor;
-	int64_t const _major = major(st.st_dev);
-	int64_t const _minor = minor(st.st_dev);
-	if (_major != stored_major) {
-		xf86Msg(X_ERROR, "[%s] error: device major check failed stat: %ld dev: %ld\n", GAMEPAD_DRIVER_NAME, _major, stored_major);
-		rc = BadImplementation;
-		goto error;
-	}
-	else {
-		checked_major = 1;
-	}
-
-	if (_minor != stored_minor) {
-		xf86Msg(X_ERROR, "[%s] error: device minor check failed stat: %ld dev: %ld\n", GAMEPAD_DRIVER_NAME, _minor, stored_minor);
-		rc = BadImplementation;
-		goto error;
-	}
-	else {
-		checked_minor = 1;
-	}
+	xf86Msg(X_DEBUG, "[%s] device major: %ld minor: %ld\n", GAMEPAD_DRIVER_NAME, _ev_major, _ev_minor);
+	checked_major = 1;
+	checked_minor = 1;
 
 	iopts = (typeof(iopts)) info_gamepad->options;
 	while (iopts) {
