@@ -290,8 +290,8 @@ static int GamepadCorePreInit(
 	int flags
 ) {
 	int rc = 0;
-	int checked_minor = 0;
-	int checked_major = 0;
+	int updated_minor = 0;
+	int updated_major = 0;
 	int checked_options = 0;
 	int checked_attrs = 0;
 	char *devname = NULL;
@@ -476,25 +476,18 @@ static int GamepadCorePreInit(
 		}
 	}
 
-	int64_t const _ev_major = stx.stx_rdev_major;
-	int64_t const _ev_minor = stx.stx_rdev_minor;
-
-	rc = statx(ignore_dirfd, stored_devname, 0, STATX_BASIC_STATS, &stx);
-	if (-1 == rc) {
-		xf86Msg(X_ERROR, "[%s] failed to query device status: %s\n", GAMEPAD_DRIVER_NAME, stored_devname);
-		if (errno) {
-			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-		}
-	}
-	int64_t const _js_major = stx.stx_rdev_major;
-	int64_t const _js_minor = stx.stx_rdev_minor;
+	int32_t const _ev_major = stx.stx_rdev_major;
+	int32_t const _ev_minor = stx.stx_rdev_minor;
+	info_gamepad->major = _ev_major;
+	info_gamepad->minor = _ev_minor;
+	xf86ReplaceIntOption(info_gamepad->options, "major", info_gamepad->major);
+	xf86ReplaceIntOption(info_gamepad->options, "minor", info_gamepad->minor);
+	// TODO options "config_options" set by udev needs to be updated perhaps because it's tied to the /dev/input/jsX device instead of the /dev/input/eventX device
 
 	// NOTE: using signed 64-bits because stat() stores them as unsigned 32-bits but the xsever stores them as signed 32-bits
-	int64_t const stored_major = info_gamepad->major;
-	int64_t const stored_minor = info_gamepad->minor;
 	xf86Msg(X_DEBUG, "[%s] device major: %ld minor: %ld\n", GAMEPAD_DRIVER_NAME, _ev_major, _ev_minor);
-	checked_major = 1;
-	checked_minor = 1;
+	updated_major = 1;
+	updated_minor = 1;
 
 	iopts = (typeof(iopts)) info_gamepad->options;
 	while (iopts) {
@@ -507,7 +500,7 @@ static int GamepadCorePreInit(
 	xf86Msg(X_DEBUG, "[%s] option: product: %s vendor: %s device: %s\n", GAMEPAD_DRIVER_NAME, iattrs->product, iattrs->vendor, iattrs->device);
 	checked_attrs = 1;
 
-	if (!checked_minor || !checked_major || !checked_options || !checked_attrs) {
+	if (!updated_minor || !updated_major || !checked_options || !checked_attrs) {
 		xf86Msg(X_ERROR, "[%s] error: driver missed one of the checks\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
 		goto error;
