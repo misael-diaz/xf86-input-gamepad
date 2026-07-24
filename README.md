@@ -1,4 +1,4 @@
-# xf86-input--gamepad
+# xf86-input-gamepad
 xf86 driver development for gamepads
 
 I am writing this driver to learn about GNU/Linux, I am aware that new input drivers should be written with `libinput`. This project has taken me to read (some of) the linux kernel, dbus, libudev, systemd, and xserver code to help me understand the overall process by looking at the source.
