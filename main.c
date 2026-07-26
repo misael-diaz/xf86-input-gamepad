@@ -427,8 +427,8 @@ static int GamepadCorePreInit(
 	devname = (typeof(devname)) (mod->base + mod->offset_devname);
 	stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	xf86ReplaceStrOption(info_gamepad->options, "device", devname);
+	xf86ReplaceStrOption(info_gamepad->options, "path", devname);
 	updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
-	// TODO update path because it also stores /dev/input/jsX not /dev/input/eventX
 	if (strcmp(updated_devname, devname)) {
 		xf86Msg(X_ERROR, "[%s] error: failed to update device name, expected this: %s but got that: %s\n", GAMEPAD_DRIVER_NAME, devname, updated_devname);
 		rc = BadRequest;
