@@ -478,7 +478,7 @@ static int GamepadCorePreInit(
 	info_gamepad->minor = _ev_minor;
 	xf86ReplaceIntOption(info_gamepad->options, "major", info_gamepad->major);
 	xf86ReplaceIntOption(info_gamepad->options, "minor", info_gamepad->minor);
-	// TODO options "config_info" set by udev needs to be updated perhaps because it's tied to the /dev/input/jsX device instead of the /dev/input/eventX device and this is entirely up to you because this won't affect udev events (device_added and device_removed) the format for the syspath is `/sys/dev/{block,char}/<maj>:<min> link` and that is defined in systemd/src/libsystemd/sd-device/sd-device.c.
+	// TODO options "config_info" set by udev needs to be updated perhaps because it's tied to the /dev/input/jsX device instead of the /dev/input/eventX device and this is entirely up to you because this won't affect udev events (device_added and device_removed) the format for the syspath is `/sys/dev/{block,char}/<maj>:<min> link` and that is defined in systemd/src/libsystemd/sd-device/sd-device.c. IMPORTANT you have to update this before calling KeyboardHotplug because "config_info" is referenced in xf86ActivateDevice() and ends up being stored in the `DeviceIntPtr dev`.
 
 	xf86Msg(X_DEBUG, "[%s] device major: %d minor: %d\n", GAMEPAD_DRIVER_NAME, _ev_major, _ev_minor);
 	updated_major = 1;
