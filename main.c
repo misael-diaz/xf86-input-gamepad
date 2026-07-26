@@ -426,7 +426,7 @@ static int GamepadCorePreInit(
 
 	devname = (typeof(devname)) (mod->base + mod->offset_devname);
 	stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
-	xf86ReplaceStrOption(info_gamepad->options, "device", strdup(devname));
+	xf86ReplaceStrOption(info_gamepad->options, "device", devname);
 	updated_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	// TODO update path because it also stores /dev/input/jsX not /dev/input/eventX
 	if (strcmp(updated_devname, devname)) {
