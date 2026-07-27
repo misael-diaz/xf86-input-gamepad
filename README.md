@@ -334,3 +334,17 @@ gdb can help find the aliases of types more quickly:
 ```gdb
 info types
 ```
+
+## Legacy Code Hero
+
+Have started a series about learning from legacy code and of course the best candidate for the series is the `xserver` because it is the backbone of graphics display on linux.
+
+Recording the series with `ffmpeg`:
+
+```sh
+ffmpeg -f pulse -i default -f x11grab -video_size 2560x1440 -framerate 30 -show_region 1  -i :0 /tmp/recording.mp4
+```
+
+uses pulse to record audio from the mic, grabs the display, sets the video framerate, and the last input `-i :0` is the default connection to the X11 display.
+
+see `man ffmpeg-all` for a detailed description of the command line string.
