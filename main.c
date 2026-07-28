@@ -573,6 +573,9 @@ static int GamepadCorePreInit(
 	}
 
 	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
+	// NOTE: try to destroy the keyboard as if simulating an error to check during runtime if the xserver handles this gracefully
+	xf86DeleteInput(info_keyboard, 0);
+	info_keyboard = NULL;
 	rc = BadImplementation;
 
 error: {
