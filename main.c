@@ -465,7 +465,7 @@ static int GamepadCorePreInit(
 	errno = 0;
 	struct statx stx = {};
 	int const ignore_dirfd = -1; // the kernel will ignore it because we are providing a full path
-	// FIXME: GCC claims that statx() lacks an explicit function declaration and I find that surprising because linux/stat.h has been included to check again
+	// FIXME: GCC claims that statx() lacks an explicit function declaration and I find that surprising because linux/stat.h has been included to check again. Have tried defining __USE_GNU at the head of the source file so that it would include `bits/statx.h` behind scenes but that did not get rid of the compiler warning.
 	rc = statx(ignore_dirfd, updated_devname, 0, STATX_BASIC_STATS, &stx);
 	if (-1 == rc) {
 		xf86Msg(X_ERROR, "[%s] failed to query device status: %s\n", GAMEPAD_DRIVER_NAME, updated_devname);
