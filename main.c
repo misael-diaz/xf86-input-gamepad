@@ -456,12 +456,6 @@ static int GamepadCorePreInit(
 		goto error;
 	}
 
-	// TODO
-	// - log the device options and attributes for debugging and for verifying what the xserver gives us the first time this is called. DONE
-	// - does Set/Check/StrOption return a malloc'd string that we need to free()? looking at xf86-input-joystick suggests that we have to. read the xserver code to verify then and then do accordingly. YES WE NEED TO FREE
-	// - it seems that the driver module is unloaded when this device gets deleted and so I am wondering why the debugger did not step into the Setup procedure if that's the case. IT DOES NOT STEP INTO THE SETUP PROCEDURE BECAUSE DRIVERS ARE CACHED AND BECAUSE THE MODULE IS A DUPLICATE AND SO THE TEARDOWN PROCEDURE IS NEVER CALLED WHILE THE XSERVER IS RUNNING NORMALLY.
-
-
 	errno = 0;
 	struct statx stx = {};
 	int const ignore_dirfd = -1; // the kernel will ignore it because we are providing a full path
