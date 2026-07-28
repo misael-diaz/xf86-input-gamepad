@@ -387,10 +387,8 @@ static int GamepadCorePreInit(
 	if (info_gamepad->type_name) {
 		xf86Msg(X_DEBUG, "[%s] driver: initial gamepad type_name: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->type_name);
 	}
-	else {
-		info_gamepad->type_name = XI_JOYSTICK;
-		xf86Msg(X_DEBUG, "[%s] driver: current gamepad type_name: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->type_name);
-	}
+	info_gamepad->type_name = XI_JOYSTICK;
+	xf86Msg(X_DEBUG, "[%s] driver: current gamepad type_name: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->type_name);
 
 	if (!info_gamepad->drv) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `drv` field to be set\n", GAMEPAD_DRIVER_NAME);
