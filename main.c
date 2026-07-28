@@ -447,9 +447,8 @@ static int GamepadCorePreInit(
 		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, devname);
 	}
 
-	// TODO: driver owns the device file descriptor so make sure that driver capabilities is zero
+	// NOTE: driver owns the device file descriptor so we are just making sure that the driver capabilities is zero (as expected)
 	if (info_gamepad->flags & XI86_SERVER_FD) {
-		// NOTE: this is surprising because xf86AllocateInput() sets fd = -1 on the xserver side and also we want to know if this get called with a valid file descriptor
 		xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
 		goto error;
