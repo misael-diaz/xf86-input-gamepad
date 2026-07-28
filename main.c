@@ -131,10 +131,80 @@ static int GamepadOpen(
 }
 
 static struct _InputInfoRec *GamepadKeyboardHotplug(
-	struct _InputInfoRec *info,
+	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
-	return NULL;
+	int rc = BadImplementation;
+	struct _InputInfoRec *info_keyboard = NULL;
+	struct _DeviceIntRec *dev_keyboard = NULL;
+	struct _InputAttributes *attrs = NULL;
+	XF86OptionPtr opts = NULL;
+	char name[PATH_MAX];
+
+	memset(name, 0, sizeof(name));
+	// PATH_MAX - 1 is used so that if it will only write at most PATH_MAX bytes including the null-byte terminator
+	strncat(name, info_gamepad->name, PATH_MAX - 1);
+	strncat(name, " (keys)", PATH_MAX - 1);
+	if (!strstr(name, "(keys)")) {
+		xf86Msg(X_ERROR, "[%s] error: truncation name: %s\n", GAMEPAD_DRIVER_NAME, name);
+		goto error;
+	}
+	else {
+		xf86Msg(X_DEBUG, "[%s] GamepadKeyboardHotplug(): name: %s\n", GAMEPAD_DRIVER_NAME, name);
+	}
+
+	attrs = DuplicateInputAttributes(info_gamepad->attrs);
+	opts = xf86OptionListDuplicate(info_gamepad->options);
+	xf86ReplaceStrOption(opts, "name", name);
+	xf86ReplaceStrOption(opts, "_source", "_driver/joystick");
+
+	rc = NewInputDeviceRequest(opts, attrs, &dev_keyboard);
+	if (!rc) {
+		goto error;
+	}
+
+	if (!dev_keyboard->public.devicePrivate) {
+		goto error;
+	}
+
+	info_keyboard = dev_keyboard->public.devicePrivate;
+
+	// TODO: if we find an error here we probably want to delete `info_keyboard` and also we need to check if we do that if the xserver frees all the allocated data along with it (I think it does but it does not hurt to read the code again for this particular task). For now I am assuming that xf86DeleteInput() does the right things.
+	if (strcmp(name, info_keyboard->name)) {
+		xf86Msg(X_ERROR, "[%s] error: name mismatch: name: %s name: %s\n", GAMEPAD_DRIVER_NAME, info_keyboard->name, name);
+		goto error;
+	}
+
+	FreeInputAttributes(attrs);
+	// NOTE: the xf86-input-joystick driver author used a custom function that does exactly the same as xf86OptionListFree() and this is why we are using it instead
+	xf86OptionListFree(opts);
+	attrs = NULL;
+	opts = NULL;
+	return info_keyboard;
+
+error: {
+	       if (attrs) {
+		       FreeInputAttributes(attrs);
+		       attrs = NULL;
+	       }
+
+	       if (opts) {
+		       xf86OptionListFree(opts);
+		       opts = NULL;
+	       }
+
+	       // NOTE: assuming that's ok to call xf86DeleteInput() to free all the data, it's not necessary to lookup the driver as we do in GamepadCoreUnInit() because this one has a copy of the same driver not a new entry in the list of input-drivers
+	       if (info_keyboard) {
+		       xf86DeleteInput(info_keyboard, 0);
+		       info_keyboard = NULL;
+	       }
+
+	       if (!rc) {
+		       rc = BadImplementation;
+	       }
+
+	       return NULL;
+       }
 }
 
 static int IsEventDevice(struct dirent const *dir)
