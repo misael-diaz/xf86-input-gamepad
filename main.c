@@ -147,6 +147,7 @@ static int IsEventDevice(struct dirent const *dir)
 }
 
 // TODO: add a cleanup goto to improve readability
+// TODO: what if user connects another controller with the same name? we would not be ableto tell one controller from the other just based on the name. This is not marked as high priority at this point in development.
 static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * const product_name)
 {
 	errno = 0;
