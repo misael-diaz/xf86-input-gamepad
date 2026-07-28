@@ -293,6 +293,7 @@ static int GamepadCorePreInit(
 	int updated_major = 0;
 	int checked_options = 0;
 	int checked_attrs = 0;
+	char *driver = NULL;
 	char *devname = NULL;
 	char *stored_devname = NULL;
 	char *updated_devname = NULL;
@@ -413,6 +414,13 @@ static int GamepadCorePreInit(
 		goto error;
 	}
 
+	driver = xf86CheckStrOption(info_gamepad->options, "driver", NULL);
+	if (strcmp(info_gamepad->driver, driver)) {
+		xf86Msg(X_ERROR, "[%s] driver: expected matching `drivers` driver: %s driver: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->driver, driver);
+		rc = BadImplementation;
+		goto error;
+	}
+
 	module = (typeof(module)) info_gamepad->drv->module;
 	mod = module->TearDownData;
 	rc = GamepadGetDeviceName(mod, product_name);
@@ -502,6 +510,11 @@ error: {
 	       if (src) {
 		       free(src);
 		       src = NULL;
+	       }
+
+	       if (driver) {
+		       free(driver);
+		       driver = NULL;
 	       }
 
 	       if (stored_devname) {
