@@ -570,8 +570,13 @@ static int GamepadCorePreInit(
 		checked_options = 1;
 	}
 
-	// FIXME: attributes references the /dev/input/jsX path should be replaced with /dev/input/eventX path
 	iattrs = info_gamepad->attrs;
+	if (info_gamepad->attrs->device) {
+		// NOTES: FreeInputAttributes() shows that all these pointers are allocated on the heap and so the right thing to do is to free the device name here and replace it with a duplicate of the /dev/input/eventX device name. Driver needs to do this so that it points to the actual device being used not the one detected by udev (which defaults to the legacy input linux kernel API)
+		free(info_gamepad->attrs->device);
+		info_gamepad->attrs->device = NULL;
+		info_gamepad->attrs->device = strdup(updated_devname);
+	}
 	xf86Msg(X_DEBUG, "[%s] option: product: %s vendor: %s device: %s\n", GAMEPAD_DRIVER_NAME, iattrs->product, iattrs->vendor, iattrs->device);
 	checked_attrs = 1;
 
