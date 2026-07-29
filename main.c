@@ -651,10 +651,12 @@ static void GamepadCoreUnInit(
 			struct _InputDriverRec *drv = xf86LookupInputDriver(info_gamepad->drv->driverName);
 			drv->driverName = stub;
 		}
+	}
+#endif
+	if (src) {
 		free(src);
 		src = NULL;
 	}
-#endif
 	xf86DeleteInput(info_gamepad, 0);
 	return;
 }
