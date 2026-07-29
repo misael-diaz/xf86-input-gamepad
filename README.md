@@ -348,3 +348,17 @@ ffmpeg -f pulse -i default -f x11grab -video_size 2560x1440 -framerate 30 -show_
 uses pulse to record audio from the mic, grabs the display, sets the video framerate, and the last input `-i :0` is the default connection to the X11 display.
 
 see `man ffmpeg-all` for a detailed description of the command line string.
+
+on Windows the command is somewhat different:
+
+```sh
+ffmpeg.exe -f gdigrab -framerate 30  -i desktop -f dshow -i  audio="@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{2B3D5B04-9C9B-4AC1-BB07-CBB363E0493F}" output.mp4
+```
+
+had to use the following command to get the alternate device name:
+
+```sh
+ffmpeg.exe -f dshow -list_devices true -i dummy
+```
+
+it will complain that `dummy` is not a valid input but it will show the list of devices with their alternative names, which is useful when the device name is not plain ascii text.
