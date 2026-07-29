@@ -141,12 +141,12 @@ static int GamepadOpen(
 	return -1;
 }
 
-static struct _InputInfoRec *GamepadKeyboardHotplug(
+static int GamepadKeyboardHotplug(
+	struct _InputInfoRec **info_keyboard,
 	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
 	int rc = BadImplementation;
-	struct _InputInfoRec *info_keyboard = NULL;
 	struct _DeviceIntRec *dev_keyboard = NULL;
 	struct _InputAttributes *attrs = NULL;
 	XF86OptionPtr opts = NULL;
@@ -170,7 +170,11 @@ static struct _InputInfoRec *GamepadKeyboardHotplug(
 	xf86ReplaceStrOption(opts, "_source", "_driver/joystick");
 
 	rc = NewInputDeviceRequest(opts, attrs, &dev_keyboard);
-	if (!rc) {
+	if (rc) {
+		goto error;
+	}
+
+	if (!dev_keyboard) {
 		goto error;
 	}
 
@@ -178,11 +182,11 @@ static struct _InputInfoRec *GamepadKeyboardHotplug(
 		goto error;
 	}
 
-	info_keyboard = dev_keyboard->public.devicePrivate;
+	*info_keyboard = dev_keyboard->public.devicePrivate;
 
 	// TODO: if we find an error here we probably want to delete `info_keyboard` and also we need to check if we do that if the xserver frees all the allocated data along with it (I think it does but it does not hurt to read the code again for this particular task). For now I am assuming that xf86DeleteInput() does the right things.
-	if (strcmp(name, info_keyboard->name)) {
-		xf86Msg(X_ERROR, "[%s] error: name mismatch: name: %s name: %s\n", GAMEPAD_DRIVER_NAME, info_keyboard->name, name);
+	if (strcmp(name, (*info_keyboard)->name)) {
+		xf86Msg(X_ERROR, "[%s] error: name mismatch: name: %s name: %s\n", GAMEPAD_DRIVER_NAME, (*info_keyboard)->name, name);
 		goto error;
 	}
 
@@ -191,7 +195,7 @@ static struct _InputInfoRec *GamepadKeyboardHotplug(
 	xf86OptionListFree(opts);
 	attrs = NULL;
 	opts = NULL;
-	return info_keyboard;
+	return rc;
 
 error: {
 	       if (attrs) {
@@ -204,17 +208,11 @@ error: {
 		       opts = NULL;
 	       }
 
-	       // NOTE: assuming that's ok to call xf86DeleteInput() to free all the data, it's not necessary to lookup the driver as we do in GamepadCoreUnInit() because this one has a copy of the same driver not a new entry in the list of input-drivers
-	       if (info_keyboard) {
-		       xf86DeleteInput(info_keyboard, 0);
-		       info_keyboard = NULL;
-	       }
-
 	       if (!rc) {
 		       rc = BadImplementation;
 	       }
 
-	       return NULL;
+	       return rc;
        }
 }
 
@@ -582,10 +580,13 @@ static int GamepadCorePreInit(
 		goto error;
 	}
 
-	info_keyboard = GamepadKeyboardHotplug(info_gamepad, flags);
+	rc = GamepadKeyboardHotplug(&info_keyboard, info_gamepad, flags);
+	if (rc) {
+		// NOTE: on error GamepadCoreUnInit() to handle the teardown
+		xf86Msg(X_ERROR, "[%s] error: hotplugging failed\n", GAMEPAD_DRIVER_NAME);
+		goto error;
+	}
 	// NOTE: try to destroy the keyboard as if simulating an error to check during runtime if the xserver handles this gracefully
-	xf86DeleteInput(info_keyboard, 0);
-	info_keyboard = NULL;
 	rc = BadImplementation;
 
 error: {
@@ -629,6 +630,7 @@ static void GamepadCoreUnInit(
 	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
+	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
 	struct _GamepadModuleRec *mod = module->TearDownData;
 	if (mod) {
@@ -644,8 +646,14 @@ static void GamepadCoreUnInit(
 
 #if DEVBUILD
 	// NOTE: clearing the driver name makes it possible to trigger an input-driver hotloading, no need to duplicate the empty string
-	struct _InputDriverRec *drv = xf86LookupInputDriver(info_gamepad->drv->driverName);
-	drv->driverName = stub;
+	if (src) {
+		if (!strcmp(src, "server/udev")) {
+			struct _InputDriverRec *drv = xf86LookupInputDriver(info_gamepad->drv->driverName);
+			drv->driverName = stub;
+		}
+		free(src);
+		src = NULL;
+	}
 #endif
 	xf86DeleteInput(info_gamepad, 0);
 	return;
