@@ -370,6 +370,8 @@ static int GamepadKeyboardPreInit(
 	int flags
 ) {
 	int rc = BadImplementation;
+
+	// TODO: omit calls to xf86SetStrOption(info_keyboard->options, "xkb_*", NULL) as in the xf86-input-joystick driver because I know that these are going to return NULL, there's no way that there will be something at that point and so we are safe to omit. The ones that probably matter are those having the form "Xkb*"
 	xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: GamepadKeyboardPreInit not implemented\n", GAMEPAD_DRIVER_NAME);
 	return rc;
 }
