@@ -751,7 +751,9 @@ static void *GamepadDriverSetup(
     }
     uint64_t const pagesz = (typeof(pagesz)) rc;
     uint64_t const mask_page = (pagesz - 1);
-    uint64_t const size_mmap = (((pagesz + PATH_MAX) + mask_page) & (~mask_page));
+    // TODO: assert at compile-time that the private data size is less than PATH_MAX don't miss that we are requesting twice that amount to make room for the device name.
+    uint64_t const size_data = ((PATH_MAX) << 1);
+    uint64_t const size_mmap = (((pagesz + size_data) + mask_page) & (~mask_page));
     void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     errno = 0;
     if (MAP_FAILED == base) {
