@@ -182,6 +182,7 @@ static int GamepadKeyboardHotplug(
 		goto error;
 	}
 
+	// NOTE: in xf86ActivateDevice() dev_keyboard->public.devicePrivate references the InputInfoRec data structure and it then binds the device to the InputInfoRec data structure
 	*info_keyboard = dev_keyboard->public.devicePrivate;
 
 	// TODO: if we find an error here we probably want to delete `info_keyboard` and also we need to check if we do that if the xserver frees all the allocated data along with it (I think it does but it does not hurt to read the code again for this particular task). For now I am assuming that xf86DeleteInput() does the right things.
@@ -362,6 +363,17 @@ static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * cons
 	}
 }
 
+// TODO implement PreInit for keyboard device
+static int GamepadKeyboardPreInit(
+	struct _InputDriverRec *driver_gamepad,
+	struct _InputInfoRec *info_keyboard,
+	int flags
+) {
+	int rc = BadImplementation;
+	xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: GamepadKeyboardPreInit not implemented\n", GAMEPAD_DRIVER_NAME);
+	return rc;
+}
+
 static int GamepadCorePreInit(
 	struct _InputDriverRec *driver_gamepad,
 	struct _InputInfoRec *info_gamepad,
@@ -387,9 +399,9 @@ static int GamepadCorePreInit(
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 	if (src) {
 		if (!strcmp(src, "_driver/joystick")) {
-			// TODO implement PreInit for keyboard device
-			xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: kdbPreInit not implemented\n", GAMEPAD_DRIVER_NAME);
-			rc = BadImplementation;
+			// NOTE: when we get here the InputInfoRec correspond to that of the keyboard device that we need for sending events to the xserver and this is why here I am using `info_keyboard` to refer to the input info record of the keyboard
+			struct _InputInfoRec *info_keyboard = info_gamepad;
+			rc = GamepadKeyboardPreInit(driver_gamepad, info_keyboard, flags);
 			goto error;
 		}
 		else {
