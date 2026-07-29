@@ -570,6 +570,7 @@ static int GamepadCorePreInit(
 		checked_options = 1;
 	}
 
+	// FIXME: attributes references the /dev/input/jsX path should be replaced with /dev/input/eventX path
 	iattrs = info_gamepad->attrs;
 	xf86Msg(X_DEBUG, "[%s] option: product: %s vendor: %s device: %s\n", GAMEPAD_DRIVER_NAME, iattrs->product, iattrs->vendor, iattrs->device);
 	checked_attrs = 1;
