@@ -63,6 +63,9 @@ Mostly reading the Xserver source code and also the xf86-input-joystick implemen
 
 - **updating input-device options**: added code to update the input device options to match the modern device path for handling linux input events. There's still a lot of code to read however I am now able to read the xf86-input-joystick code with a better idea of what the xserver function calls do regarding the driver setup. I still need to read in more detail the keyboard configuration code that the xserver does when trying to enable the device. Note that the gamepad has a slaved keyboard device and this is exactly what I am looking into. This is how the driver looks like at this point, see commit [6c49d668](https://github.com/misael-diaz/xf86-input-gamepad/tree/6c49d668899f28aca3eb95afa3d3e26b1788dc8a).
 
+This is a recording of a GDB session that walks through the xserver code from the moment the gamepad is connected to the computer until it rejects the driver because it is incomplete (and that's what it should happen at this point).
+[![Watch the Video](https://img.youtube.com/vi/QxBxNJ4UqFI/hqdefault.jpg)](https://youtu.be/QxBxNJ4UqFI)
+
 ## Requirements
 
 Install the development files
