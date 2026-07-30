@@ -58,6 +58,7 @@ _Static_assert(sizeof(struct _InputOption) == sizeof(struct _XF86OptionRec));
 _Static_assert(sizeof(struct dirent) > 256);
 _Static_assert(sizeof(long) == sizeof(int64_t));
 _Static_assert(sizeof(int64_t) == 8);
+_Static_assert(sizeof(Bool) == sizeof(int));
 
 #define __LINUX_KERNEL_BITS_TO_LONGS(n) (((n) + 63) >> 6)
 #define NBITS(x) __LINUX_KERNEL_BITS_TO_LONGS(x)
@@ -364,11 +365,12 @@ static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * cons
 	}
 }
 
-static Bool GamepadKbdCtrlProc(
+// NOTE: changed the apparent function "signature" of the GamepadKbdCtrlProc (note that `Bool` is an alias for `int` and so we really did not change the signature only in appearance but with a good reason). The reason for changing the apparent signature of the control procedure is that ActivateDevice() interprets zero values as success and non-zero values as failures. That means that if we return TRUE (a boolean which have a value of 1) ActivateDevice() is going to interpret that as a failure and that will cause our driver to be rejected by the xserver.
+static int GamepadKbdCtrlProc(
 	struct _DeviceIntRec *dev_keyboard,
 	int what
 ) {
-	Bool rc = TRUE;
+	int rc = Success;
 	switch (what) {
 	case DEVICE_INIT: {
 		// NOTE: testing what happens if we omit RLMVO
@@ -393,7 +395,7 @@ static Bool GamepadKbdCtrlProc(
 	break;
 
 	default: {
-		rc = FALSE;
+		rc = BadImplementation;
 		xf86Msg(X_DEBUG, "[%s] GamepadKbdCtrlProc: error: unknown action\n", GAMEPAD_DRIVER_NAME);
 	}
 	}
