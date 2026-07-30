@@ -367,6 +367,43 @@ static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * cons
 	}
 }
 
+static Bool GamepadKbdCtrlProc(
+	struct _DeviceIntRec *dev_keyboard,
+	int what
+) {
+	Bool rc = TRUE;
+	switch (what) {
+	case DEVICE_INIT: {
+		// NOTE: testing what happens if we omit RLMVO
+		// rmlvo = NULL, bell_func = NULL, ctrl_func = NULL
+		rc = InitKeyboardDeviceStruct(dev_keyboard, NULL, NULL, NULL);
+	}
+	break;
+
+	case DEVICE_ON: {
+		dev_keyboard->public.on = TRUE;
+	}
+	break;
+
+	case DEVICE_OFF: {
+		dev_keyboard->public.on = FALSE;
+	}
+	break;
+
+	case DEVICE_CLOSE: {
+		dev_keyboard->public.on = FALSE;
+	}
+	break;
+
+	default: {
+		rc = FALSE;
+		xf86Msg(X_DEBUG, "[%s] GamepadKbdCtrlProc: error: unknown action\n", GAMEPAD_DRIVER_NAME);
+	}
+	}
+
+	return rc;
+}
+
 // TODO implement PreInit for keyboard device
 static int GamepadKbdPreInit(
 	struct _InputDriverRec *driver_gamepad,
@@ -377,7 +414,7 @@ static int GamepadKbdPreInit(
 	int rc = Success;
 	struct _ModuleDesc *module = driver_gamepad->module;
 	struct _GamepadModuleRec *mod = module->TearDownData;
-	info_keyboard->device_control = NULL; // TODO impl, leaving out on purpuse to see what the xserver does
+	info_keyboard->device_control = GamepadKbdCtrlProc;
 	info_keyboard->read_input = NULL;
 	info_keyboard->control_proc = NULL;
 	info_keyboard->switch_mode = NULL;
