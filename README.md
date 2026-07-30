@@ -61,6 +61,8 @@ Mostly reading the Xserver source code and also the xf86-input-joystick implemen
 
 - **hotloading**: managed to implement input driver hotloading by changing the driver name just before deleting the input driver. Note that the code is modifying the internal input driver that the xserver uses when looking up input drivers. The code uses the same input-driver lookup function to get direct access: commit [4455fc74](https://github.com/misael-diaz/xf86-input-gamepad/tree/4455fc74be50ea089e7cc898eadaeb0e2329a7f0). I have not seen other drivers implement hotloading because it is not how the xserver operates but this is fine for debugging drivers.
 
+- **updating input-device options**: added code to update the input device options to match the modern device path for handling linux input events. There's still a lot of code to read however I am now able to read the xf86-input-joystick code with a better idea of what the xserver function calls do regarding the driver setup. I still need to read in more detail the keyboard configuration code that the xserver does when trying to enable the device. Note that the gamepad has a slaved keyboard device and this is exactly what I am looking into. This is how the driver looks like at this point, see commit [6c49d668](https://github.com/misael-diaz/xf86-input-gamepad/tree/6c49d668899f28aca3eb95afa3d3e26b1788dc8a).
+
 ## Requirements
 
 Install the development files
