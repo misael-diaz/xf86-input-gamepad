@@ -111,7 +111,6 @@ struct _GamepadDevRec {
 	GamepadReadFn read;
 	struct _InputInfoRec *info_gamepad;
 	struct _InputInfoRec *info_keyboard;
-	struct _XkbRMLVOSet *options;
 	int fd;
 	uint8_t btno;
 	uint8_t axno;
@@ -121,8 +120,6 @@ struct _GamepadDevRec {
 struct _GamepadModuleRec {
     uintptr_t base;
     uint64_t size;
-    uint64_t cap_devname;
-    uint64_t cap_private;
     uint64_t offset_devname;
     uint64_t offset_private;
     uint64_t size_devname;
@@ -420,13 +417,12 @@ static int GamepadKbdPreInit(
 	info_keyboard->switch_mode = NULL;
 	info_keyboard->fd = -1;
 	// TODO: define a suitable data structure for the private data
-	info_keyboard->private = (((char*) mod->base) + mod->offset_private);
+	info_keyboard->private = (void*) (((char*) mod->base) + mod->offset_private);
 	info_keyboard->type_name = XI_JOYSTICK;
 
-	// TODO: in the future you need to use sizeof() to set `size_private`
-	mod->size_private = mod->cap_private;
-	// NOTES sets all bits for testing only
-	memset(info_keyboard->private, 0xff, mod->size_private);
+	struct _GamepadDevRec *private = info_keyboard->private;
+	private->info_keyboard = info_keyboard;
+	private->fd = -1;
 	// omits setting keyboard Rules-Model-Layout-Variant-Options RMLVO on purpose
 	return rc;
 }
@@ -663,6 +659,11 @@ static int GamepadCorePreInit(
 		xf86Msg(X_ERROR, "[%s] error: hotplugging failed\n", GAMEPAD_DRIVER_NAME);
 		goto error;
 	}
+
+	info_keyboard->private = (void*) (((char*) mod->base) + mod->offset_private);
+	struct _GamepadDevRec *private = info_keyboard->private;
+	private->info_gamepad = info_gamepad;
+
 	// NOTE: try to destroy the keyboard as if simulating an error to check during runtime if the xserver handles this gracefully
 	rc = BadImplementation;
 
@@ -812,16 +813,23 @@ static void *GamepadDriverSetup(
 
     struct _GamepadModuleRec mod = {};
     struct _GamepadModuleRec *mop = &mod;
-    // NOTE: we are assuming that the page size is big enough to hold our module record, it would be surprising if it didn't. This is so that we have enough room to store the device name and its private data.
-    if (sizeof(*mop) > pagesz) {
-	    xf86Msg(X_ERROR, "[%s] error: module data exceeds page size\n", GAMEPAD_DRIVER_NAME);
-	    return NULL;
-    }
+    struct _GamepadDevRec GamepadDevice = {};
+    struct _GamepadDevRec *gdp = &GamepadDevice;
 
     uint64_t const mask_page = (pagesz - 1);
-    // TODO: assert at compile-time that the private data size is less than PATH_MAX don't miss that we are requesting twice that amount to make room for the device name.
-    uint64_t const size_data = ((PATH_MAX) << 1);
-    uint64_t const size_mmap = (((pagesz + size_data) + mask_page) & (~mask_page));
+    uint64_t const size_mod = sizeof(*mop);
+    uint64_t const size_dev = sizeof(*gdp);
+    uint64_t const cap_path = PATH_MAX;
+    uint64_t const size_path = PATH_MAX;
+    uint64_t const size_pad = PATH_MAX;
+    uint64_t const size_data = (
+	    size_mod +
+	    size_dev +
+	    size_path +
+	    size_pad +
+	    0
+    );
+    uint64_t const size_mmap = ((size_data + mask_page) & (~mask_page));
     void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     errno = 0;
     if (MAP_FAILED == base) {
@@ -835,12 +843,10 @@ static void *GamepadDriverSetup(
     struct _GamepadModuleRec *priv = (typeof(priv)) base;
     priv->base = (uintptr_t) base;
     priv->size = (typeof(priv->size)) size_mmap;
-    priv->cap_devname = PATH_MAX;
-    priv->cap_private = PATH_MAX;
     priv->offset_devname = ((sizeof(*priv) + 63) & (~63));
-    priv->offset_private = (((priv->offset_devname + priv->cap_devname) + 63) & (~63));
+    priv->offset_private = (((priv->offset_devname + cap_path) + 63) & (~63));
     priv->size_devname = 0;
-    priv->size_private = 0;
+    priv->size_private = sizeof(*gdp);
 
     if ((sizeof(*priv) + PATH_MAX) > size_mmap) {
 	    // this should never happen but it does not hurt to check just in case someone changes the source later down the road
