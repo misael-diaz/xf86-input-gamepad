@@ -375,7 +375,8 @@ static int GamepadKbdCtrlProc(
 	case DEVICE_INIT: {
 		// NOTE: testing what happens if we omit RLMVO
 		// rmlvo = NULL, bell_func = NULL, ctrl_func = NULL
-		rc = InitKeyboardDeviceStruct(dev_keyboard, NULL, NULL, NULL);
+		Bool stat = InitKeyboardDeviceStruct(dev_keyboard, NULL, NULL, NULL);
+		rc = (stat)? Success : BadValue;
 	}
 	break;
 
