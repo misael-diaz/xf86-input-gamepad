@@ -373,10 +373,24 @@ static int GamepadKeyboardPreInit(
 	struct _InputInfoRec *info_keyboard,
 	int flags
 ) {
-	int rc = BadImplementation;
-
 	// TODO: omit calls to xf86SetStrOption(info_keyboard->options, "xkb_*", NULL) as in the xf86-input-joystick driver because I know that these are going to return NULL, there's no way that there will be something at that point and so we are safe to omit. The ones that probably matter are those having the form "Xkb*"
-	xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: GamepadKeyboardPreInit not implemented\n", GAMEPAD_DRIVER_NAME);
+	int rc = Success;
+	struct _ModuleDesc *module = driver_gamepad->module;
+	struct _GamepadModuleRec *mod = module->TearDownData;
+	info_keyboard->device_control = NULL; // TODO impl, leaving out on purpuse to see what the xserver does
+	info_keyboard->read_input = NULL;
+	info_keyboard->control_proc = NULL;
+	info_keyboard->switch_mode = NULL;
+	info_keyboard->fd = -1;
+	// TODO: define a suitable data structure for the private data
+	info_keyboard->private = (((char*) mod->base) + mod->offset_private);
+	info_keyboard->type_name = XI_JOYSTICK;
+
+	// TODO: in the future you need to use sizeof() to set `size_private`
+	mod->size_private = mod->cap_private;
+	// NOTES sets all bits for testing only
+	memset(info_keyboard->private, 0xff, mod->size_private);
+	// omits setting keyboard Rules-Model-Layout-Variant-Options RMLVO on purpose
 	return rc;
 }
 
@@ -406,9 +420,11 @@ static int GamepadCorePreInit(
 	if (src) {
 		if (!strcmp(src, "_driver/joystick")) {
 			// NOTE: when we get here the InputInfoRec correspond to that of the keyboard device that we need for sending events to the xserver and this is why here I am using `info_keyboard` to refer to the input info record of the keyboard
+			free(src);
+			src = NULL;
 			struct _InputInfoRec *info_keyboard = info_gamepad;
 			rc = GamepadKeyboardPreInit(driver_gamepad, info_keyboard, flags);
-			goto error;
+			return rc;
 		}
 		else {
 			xf86Msg(X_DEBUG, "[%s] _source: %s\n", GAMEPAD_DRIVER_NAME, src);
@@ -654,6 +670,8 @@ static void GamepadCoreUnInit(
 	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
+	// NOTE: private is an address to a mmap region and so it's safe to nullify and we should because the xserver will try to free it otherwise and crash with flying colors!
+	info_gamepad->private = NULL;
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
 	struct _GamepadModuleRec *mod = module->TearDownData;
