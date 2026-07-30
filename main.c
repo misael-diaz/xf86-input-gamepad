@@ -145,7 +145,7 @@ static int GamepadOpen(
 	return -1;
 }
 
-static int GamepadKeyboardHotplug(
+static int GamepadKbdHotplug(
 	struct _InputInfoRec **info_keyboard,
 	struct _InputInfoRec *info_gamepad,
 	int flags
@@ -165,7 +165,7 @@ static int GamepadKeyboardHotplug(
 		goto error;
 	}
 	else {
-		xf86Msg(X_DEBUG, "[%s] GamepadKeyboardHotplug(): name: %s\n", GAMEPAD_DRIVER_NAME, name);
+		xf86Msg(X_DEBUG, "[%s] GamepadKbdHotplug(): name: %s\n", GAMEPAD_DRIVER_NAME, name);
 	}
 
 	attrs = DuplicateInputAttributes(info_gamepad->attrs);
@@ -368,7 +368,7 @@ static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * cons
 }
 
 // TODO implement PreInit for keyboard device
-static int GamepadKeyboardPreInit(
+static int GamepadKbdPreInit(
 	struct _InputDriverRec *driver_gamepad,
 	struct _InputInfoRec *info_keyboard,
 	int flags
@@ -423,7 +423,7 @@ static int GamepadCorePreInit(
 			free(src);
 			src = NULL;
 			struct _InputInfoRec *info_keyboard = info_gamepad;
-			rc = GamepadKeyboardPreInit(driver_gamepad, info_keyboard, flags);
+			rc = GamepadKbdPreInit(driver_gamepad, info_keyboard, flags);
 			return rc;
 		}
 		else {
@@ -620,7 +620,7 @@ static int GamepadCorePreInit(
 		goto error;
 	}
 
-	rc = GamepadKeyboardHotplug(&info_keyboard, info_gamepad, flags);
+	rc = GamepadKbdHotplug(&info_keyboard, info_gamepad, flags);
 	if (rc) {
 		// NOTE: on error GamepadCoreUnInit() to handle the teardown
 		xf86Msg(X_ERROR, "[%s] error: hotplugging failed\n", GAMEPAD_DRIVER_NAME);
