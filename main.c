@@ -529,19 +529,19 @@ static int GamepadCorePreInit(
 	if (!info_gamepad->name) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `name` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (!info_gamepad->driver) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `driver` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (info_gamepad->flags & XI86_SERVER_FD) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected to manage the device file descriptor:\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	info_gamepad->device_control = NULL; // TODO impl GamepadCoreControl
@@ -554,13 +554,13 @@ static int GamepadCorePreInit(
 		// NOTE: should have been set by xf86AddInput() right before calling this PreInit function; see call stack: NewInputDeviceRequest() -> xf86NewInputDevice() -> xf86AddInput() -> drv->PreInit()
 		xf86Msg(X_DEBUG, "[%s] driver: %s\n", GAMEPAD_DRIVER_NAME, "UNKNOWN");
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (-1 != info_gamepad->fd) {
 		xf86Msg(X_DEBUG, "[%s] driver: did not expected to find a valid file descriptor fd: %d\n", GAMEPAD_DRIVER_NAME, info_gamepad->fd);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 	else {
 		info_gamepad->fd = -1;
@@ -571,13 +571,13 @@ static int GamepadCorePreInit(
 		// if both are zero that means that xf86NewInputDevice() did not call xf86stat() to query the device major and minor values and that would be surprising
 		xf86Msg(X_DEBUG, "[%s] driver: expected device major to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (info_gamepad->dev) {
 		xf86Msg(X_DEBUG, "[%s] driver: did not expect `dev` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 	else {
 		info_gamepad->dev = NULL; // NOTE: set by AddInputDevice() later
@@ -586,7 +586,7 @@ static int GamepadCorePreInit(
 	if (info_gamepad->private) {
 		xf86Msg(X_DEBUG, "[%s] driver: did not expect `private` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 	else {
 		info_gamepad->private = NULL;
@@ -601,32 +601,32 @@ static int GamepadCorePreInit(
 	if (!info_gamepad->drv) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `drv` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (!info_gamepad->module) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `module` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (!info_gamepad->options) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `options` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	if (!info_gamepad->attrs) {
 		xf86Msg(X_DEBUG, "[%s] driver: expected `attrs` field to be set\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	driver = xf86CheckStrOption(info_gamepad->options, "driver", NULL);
 	if (strcmp(info_gamepad->driver, driver)) {
 		xf86Msg(X_ERROR, "[%s] driver: expected matching `drivers` driver: %s driver: %s\n", GAMEPAD_DRIVER_NAME, info_gamepad->driver, driver);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	module = (typeof(module)) info_gamepad->drv->module;
@@ -636,7 +636,7 @@ static int GamepadCorePreInit(
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
 		rc = BadRequest;
-		goto error;
+		goto mhandler;
 	}
 
 	// NOTE: GamepadGetDeviceName() ensures that gamepad_name is null-terminated we are just being thorough by clearing out the last byte of `devname`
@@ -652,7 +652,7 @@ static int GamepadCorePreInit(
 	if (strcmp(updated_devname, devname)) {
 		xf86Msg(X_ERROR, "[%s] error: failed to update device name, expected this: %s but got that: %s\n", GAMEPAD_DRIVER_NAME, devname, updated_devname);
 		rc = BadRequest;
-		goto error;
+		goto mhandler;
 	}
 	else {
 		xf86Msg(X_DEBUG, "[%s] debug: updated device name from: %s to: %s\n", GAMEPAD_DRIVER_NAME, stored_devname, updated_devname);
@@ -662,7 +662,7 @@ static int GamepadCorePreInit(
 	if (info_gamepad->flags & XI86_SERVER_FD) {
 		xf86Msg(X_ERROR, "[%s] error: PreInit: driver should own the device file descriptor\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	errno = 0;
@@ -707,27 +707,27 @@ static int GamepadCorePreInit(
 	if (!updated_minor || !updated_major || !checked_options || !checked_attrs) {
 		xf86Msg(X_ERROR, "[%s] error: driver missed one of the checks\n", GAMEPAD_DRIVER_NAME);
 		rc = BadImplementation;
-		goto error;
+		goto mhandler;
 	}
 
 	rc = GamepadKbdHotplug(&info_keyboard, info_gamepad, flags);
 	if (rc) {
 		// NOTE: on error GamepadCoreUnInit() to handle the teardown
 		xf86Msg(X_ERROR, "[%s] error: hotplugging failed\n", GAMEPAD_DRIVER_NAME);
-		goto error;
+		goto mhandler;
 	}
 
 	if (!info_keyboard) {
 		rc = BadImplementation;
 		xf86Msg(X_ERROR, "[%s] error: hotplugging missing kbd info\n", GAMEPAD_DRIVER_NAME);
-		goto error;
+		goto mhandler;
 	}
 
 	mod = info_keyboard->private;
 	if (!mod) {
 		rc = BadImplementation;
 		xf86Msg(X_ERROR, "[%s] error: no virtual memory allocated\n", GAMEPAD_DRIVER_NAME);
-		goto error;
+		goto mhandler;
 	}
 	else {
 		uintptr_t const base = mod->base;
@@ -738,27 +738,27 @@ static int GamepadCorePreInit(
 		if (base & mask) {
 			xf86Msg(X_ERROR, "[%s] error: expected paged-aligned address space\n", GAMEPAD_DRIVER_NAME);
 			rc = BadImplementation;
-			goto error;
+			goto mhandler;
 		}
 		else if (!mod->offset_private) {
 			xf86Msg(X_ERROR, "[%s] error: missing offset\n", GAMEPAD_DRIVER_NAME);
 			rc = BadImplementation;
-			goto error;
+			goto mhandler;
 		}
 		else if (mod->offset_private & 63) {
 			xf86Msg(X_ERROR, "[%s] error: expected 64-byte alignment\n", GAMEPAD_DRIVER_NAME);
 			rc = BadImplementation;
-			goto error;
+			goto mhandler;
 		}
 		else if (!mod->size_private) {
 			xf86Msg(X_ERROR, "[%s] error: missing device data size\n", GAMEPAD_DRIVER_NAME);
 			rc = BadImplementation;
-			goto error;
+			goto mhandler;
 		}
 		else if (sizeof(*dev) != mod->size_private) {
 			xf86Msg(X_ERROR, "[%s] error: wrong device data size\n", GAMEPAD_DRIVER_NAME);
 			rc = BadImplementation;
-			goto error;
+			goto mhandler;
 		}
 	}
 
@@ -766,9 +766,9 @@ static int GamepadCorePreInit(
 	private->info_gamepad = info_gamepad;
 
 	// NOTE: try to destroy the keyboard as if simulating an error to check during runtime if the xserver handles this gracefully
-	rc = BadImplementation;
+	rc = Success;
 
-error: {
+mhandler: {
 	       // NOTE: devname is not malloc'd and so we don't need to free it
 
 	       if (src) {
@@ -796,9 +796,6 @@ error: {
 		       config_info = NULL;
 	       }
 
-	       if (!rc) {
-		       rc = BadImplementation;
-	       }
 	       return rc;
        }
 }
