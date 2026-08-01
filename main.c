@@ -809,6 +809,7 @@ static void GamepadCoreUnInit(
 	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
+	// FIXME: if this get called while setting up the keyboard device that will cause the driver to release the virtual memory but this won't execute when an error happens for the gamepad device, also we are not deleting the keyboard device and probably we should and test (even if the xf86-input-joystick does not free it).
 	// NOTE: private is an address to a mmap region and so it's safe to nullify and we should because the xserver will try to free it otherwise and crash with flying colors!
 	if (info_gamepad->private) {
 		// NOTE: we already checked that `mod` is paged-aligned in GamepadCorePreInit() and so we should not need to do that again here
