@@ -810,7 +810,6 @@ static void GamepadCoreUnInit(
 	int flags
 ) {
 	// NOTE: private is an address to a mmap region and so it's safe to nullify and we should because the xserver will try to free it otherwise and crash with flying colors!
-	info_gamepad->private = NULL;
 	if (info_gamepad->private) {
 		// NOTE: we already checked that `mod` is paged-aligned in GamepadCorePreInit() and so we should not need to do that again here
 		struct _GamepadModuleRec *mod = info_gamepad->private;
