@@ -498,9 +498,9 @@ static int GamepadCorePreInit(
 	int updated_major = 0;
 	int checked_options = 0;
 	int checked_attrs = 0;
+	char devname[PATH_MAX];
 	char gamepad_name[PATH_MAX];
 	char *driver = NULL;
-	char *devname = NULL;
 	char *stored_devname = NULL;
 	char *updated_devname = NULL;
 	char *config_info = NULL;
@@ -640,6 +640,7 @@ static int GamepadCorePreInit(
 	}
 
 	// NOTE: GamepadGetDeviceName() ensures that gamepad_name is null-terminated we are just being thorough by clearing out the last byte of `devname`
+	memset(devname, 0, sizeof(devname));
 	strncpy(devname, gamepad_name, PATH_MAX);
 	devname[PATH_MAX - 1] = 0;
 	stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
