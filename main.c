@@ -160,6 +160,7 @@ static int GamepadKbdHotplug(
 	strncat(name, " (keys)", PATH_MAX - 1);
 	if (!strstr(name, "(keys)")) {
 		xf86Msg(X_ERROR, "[%s] error: truncation name: %s\n", GAMEPAD_DRIVER_NAME, name);
+		rc = BadImplementation;
 		goto error;
 	}
 	else {
@@ -177,10 +178,12 @@ static int GamepadKbdHotplug(
 	}
 
 	if (!dev_keyboard) {
+		rc = BadImplementation;
 		goto error;
 	}
 
 	if (!dev_keyboard->public.devicePrivate) {
+		rc = BadImplementation;
 		goto error;
 	}
 
@@ -189,6 +192,7 @@ static int GamepadKbdHotplug(
 
 	// TODO: if we find an error here we probably want to delete `info_keyboard` and also we need to check if we do that if the xserver frees all the allocated data along with it (I think it does but it does not hurt to read the code again for this particular task). For now I am assuming that xf86DeleteInput() does the right things.
 	if (strcmp(name, (*info_keyboard)->name)) {
+		rc = BadImplementation;
 		xf86Msg(X_ERROR, "[%s] error: name mismatch: name: %s name: %s\n", GAMEPAD_DRIVER_NAME, (*info_keyboard)->name, name);
 		goto error;
 	}
