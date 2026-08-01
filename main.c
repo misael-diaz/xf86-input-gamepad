@@ -453,7 +453,7 @@ static void *GamepadCoreVirtualMemory(void)
     if ((sizeof(*priv) + PATH_MAX) > size_mmap) {
 	    // this should never happen but it does not hurt to check just in case someone changes the source later down the road
 	    xf86Msg(X_ERROR, "[%s] error: insufficient memory-map size\n", GAMEPAD_DRIVER_NAME);
-	    munmap(base, size_mmap);
+	    munmap((void*) base, size_mmap);
 	    return NULL;
     }
 
@@ -808,7 +808,7 @@ static void GamepadCoreUnInit(
 	if (info_gamepad->private) {
 		// NOTE: we already checked that `mod` is paged-aligned in GamepadCorePreInit() and so we should not need to do that again here
 		struct _GamepadModuleRec *mod = info_gamepad->private;
-		munmap(mod->base, mod->size);
+		munmap((void*) mod->base, mod->size);
 		info_gamepad->private = NULL;
 	}
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
