@@ -422,7 +422,6 @@ static void *GamepadCoreVirtualMemory(void)
     uint64_t const mask_page = (pagesz - 1);
     uint64_t const size_mod = sizeof(*mop);
     uint64_t const size_dev = sizeof(*gdp);
-    uint64_t const cap_path = PATH_MAX;
     uint64_t const size_path = PATH_MAX;
     uint64_t const size_pad = PATH_MAX;
     uint64_t const size_data = (
@@ -714,6 +713,12 @@ static int GamepadCorePreInit(
 	if (rc) {
 		// NOTE: on error GamepadCoreUnInit() to handle the teardown
 		xf86Msg(X_ERROR, "[%s] error: hotplugging failed\n", GAMEPAD_DRIVER_NAME);
+		goto error;
+	}
+
+	if (!info_keyboard) {
+		rc = BadImplementation;
+		xf86Msg(X_ERROR, "[%s] error: hotplugging missing kbd info\n", GAMEPAD_DRIVER_NAME);
 		goto error;
 	}
 
