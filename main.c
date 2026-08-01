@@ -122,6 +122,7 @@ struct _GamepadDevRec {
 struct _GamepadModuleRec {
     uintptr_t base;
     uint64_t size;
+    uint64_t mask;
     uint64_t offset_devname;
     uint64_t offset_private;
     uint64_t size_devname;
@@ -231,13 +232,12 @@ static int IsEventDevice(struct dirent const *dir)
 
 // TODO: add a cleanup goto to improve readability
 // TODO: what if user connects another controller with the same name? we would not be ableto tell one controller from the other just based on the name. This is not marked as high priority at this point in development.
-static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * const product_name)
+static int GamepadGetDeviceName(char *gamepad, char const * const product_name)
 {
 	errno = 0;
 	int found = 0;
 	int64_t rc = 0;
 	struct dirent **namelist = NULL;
-	char *gamepad = NULL;
 	rc = scandir("/dev/input", &namelist, IsEventDevice, alphasort);
 	if (-1 == rc) {
 		xf86Msg(X_ERROR, "[%s] error: scandir failed to find events\n", GAMEPAD_DRIVER_NAME);
@@ -334,10 +334,8 @@ static int GamepadGetDeviceName(struct _GamepadModuleRec *mod, char const * cons
 				}
 				if (test_bit(BTN_GAMEPAD, code)) {
 					xf86Msg(X_DEBUG, "[%s] detected gamepad: %s\n", GAMEPAD_DRIVER_NAME, devname);
-					char *gamepad = (char*) (mod->base + mod->offset_devname);
 					memset(gamepad, 0, PATH_MAX);
 					uint64_t const len = strlen(devname);
-					mod->size_devname = (1 + len);
 					if (PATH_MAX <= len) {
 						xf86Msg(X_DEBUG, "[%s] device name length is greater than or equal to PATH_MAX: %d\n", GAMEPAD_DRIVER_NAME, PATH_MAX);
 						return BadRequest;
@@ -405,6 +403,67 @@ static int GamepadKbdCtrlProc(
 	return rc;
 }
 
+static void *GamepadCoreVirtualMemory(void)
+{
+    errno = 0;
+    int64_t rc = sysconf(_SC_PAGESIZE);
+    if (-1 == rc) {
+	xf86Msg(X_ERROR, "[%s] error: failed to query the pagesize", GAMEPAD_DRIVER_NAME);
+	if (errno) {
+	    xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+	}
+	return NULL;
+    }
+    uint64_t const pagesz = (typeof(pagesz)) rc;
+
+    struct _GamepadModuleRec mod = {};
+    struct _GamepadModuleRec *mop = &mod;
+    struct _GamepadDevRec GamepadDevice = {};
+    struct _GamepadDevRec *gdp = &GamepadDevice;
+
+    uint64_t const mask_page = (pagesz - 1);
+    uint64_t const size_mod = sizeof(*mop);
+    uint64_t const size_dev = sizeof(*gdp);
+    uint64_t const cap_path = PATH_MAX;
+    uint64_t const size_path = PATH_MAX;
+    uint64_t const size_pad = PATH_MAX;
+    uint64_t const size_data = (
+	    size_mod +
+	    size_dev +
+	    size_path +
+	    size_pad +
+	    0
+    );
+    uint64_t const size_mmap = ((size_data + mask_page) & (~mask_page));
+    void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    errno = 0;
+    if (MAP_FAILED == base) {
+	xf86Msg(X_ERROR, "[%s] error: failed to map driver data", GAMEPAD_DRIVER_NAME);
+	if (errno) {
+	    xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+	}
+        return NULL;
+    }
+
+    struct _GamepadModuleRec *priv = (typeof(priv)) base;
+    priv->base = (uintptr_t) base;
+    priv->size = (typeof(priv->size)) size_mmap;
+    priv->mask = mask_page;
+    priv->offset_devname = ((sizeof(*priv) + 63) & (~63));
+    priv->offset_private = (((priv->offset_devname + cap_path) + 63) & (~63));
+    priv->size_devname = 0;
+    priv->size_private = sizeof(*gdp);
+
+    if ((sizeof(*priv) + PATH_MAX) > size_mmap) {
+	    // this should never happen but it does not hurt to check just in case someone changes the source later down the road
+	    xf86Msg(X_ERROR, "[%s] error: insufficient memory-map size\n", GAMEPAD_DRIVER_NAME);
+	    munmap(base, size_mmap);
+	    return NULL;
+    }
+
+    return base;
+}
+
 // TODO implement PreInit for keyboard device
 static int GamepadKbdPreInit(
 	struct _InputDriverRec *driver_gamepad,
@@ -413,18 +472,21 @@ static int GamepadKbdPreInit(
 ) {
 	// TODO: omit calls to xf86SetStrOption(info_keyboard->options, "xkb_*", NULL) as in the xf86-input-joystick driver because I know that these are going to return NULL, there's no way that there will be something at that point and so we are safe to omit. The ones that probably matter are those having the form "Xkb*"
 	int rc = Success;
-	struct _ModuleDesc *module = driver_gamepad->module;
-	struct _GamepadModuleRec *mod = module->TearDownData;
+	void *base = GamepadCoreVirtualMemory();
+	if (!base) {
+		return BadAlloc;
+	}
 	info_keyboard->device_control = GamepadKbdCtrlProc;
 	info_keyboard->read_input = NULL;
 	info_keyboard->control_proc = NULL;
 	info_keyboard->switch_mode = NULL;
 	info_keyboard->fd = -1;
 	// TODO: define a suitable data structure for the private data
-	info_keyboard->private = (void*) (((char*) mod->base) + mod->offset_private);
+	info_keyboard->private = base;
 	info_keyboard->type_name = XI_JOYSTICK;
 
-	struct _GamepadDevRec *private = info_keyboard->private;
+	struct _GamepadModuleRec *mod = base;
+	struct _GamepadDevRec *private = (((char*) mod->base) + mod->offset_private);
 	private->info_keyboard = info_keyboard;
 	private->fd = -1;
 	// omits setting keyboard Rules-Model-Layout-Variant-Options RMLVO on purpose
@@ -441,6 +503,7 @@ static int GamepadCorePreInit(
 	int updated_major = 0;
 	int checked_options = 0;
 	int checked_attrs = 0;
+	char gamepad_name[PATH_MAX];
 	char *driver = NULL;
 	char *devname = NULL;
 	char *stored_devname = NULL;
@@ -573,14 +636,17 @@ static int GamepadCorePreInit(
 
 	module = (typeof(module)) info_gamepad->drv->module;
 	mod = module->TearDownData;
-	rc = GamepadGetDeviceName(mod, product_name);
+	// FIXME: during setup we have no means of getting the gamepad device that udev detected unless there's only one device; this will have to wait until PreInit() and so move this code there
+	rc = GamepadGetDeviceName(gamepad_name, product_name);
 	if (Success != rc) {
 		xf86Msg(X_ERROR, "[%s] driver: failed to get gamepad device name\n", GAMEPAD_DRIVER_NAME);
 		rc = BadRequest;
 		goto error;
 	}
 
-	devname = (typeof(devname)) (mod->base + mod->offset_devname);
+	// NOTE: GamepadGetDeviceName() ensures that gamepad_name is null-terminated we are just being thorough by clearing out the last byte of `devname`
+	strncpy(devname, gamepad_name, PATH_MAX);
+	devname[PATH_MAX - 1] = 0;
 	stored_devname = xf86CheckStrOption(info_gamepad->options, "device", NULL);
 	xf86ReplaceStrOption(info_gamepad->options, "device", devname);
 	xf86ReplaceStrOption(info_gamepad->options, "path", devname);
@@ -664,8 +730,46 @@ static int GamepadCorePreInit(
 		goto error;
 	}
 
-	info_keyboard->private = (void*) (((char*) mod->base) + mod->offset_private);
-	struct _GamepadDevRec *private = info_keyboard->private;
+	mod = info_keyboard->private;
+	if (!mod) {
+		rc = BadImplementation;
+		xf86Msg(X_ERROR, "[%s] error: no virtual memory allocated\n", GAMEPAD_DRIVER_NAME);
+		goto error;
+	}
+	else {
+		uintptr_t const base = mod->base;
+		uint64_t const size = mod->size;
+		uint64_t const mask = mod->mask;
+		struct _GamepadDevRec device = {};
+		struct _GamepadDevRec *dev = &device;
+		if (base & mask) {
+			xf86Msg(X_ERROR, "[%s] error: expected paged-aligned address space\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto error;
+		}
+		else if (!mod->offset_private) {
+			xf86Msg(X_ERROR, "[%s] error: missing offset\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto error;
+		}
+		else if (mod->offset_private & 63) {
+			xf86Msg(X_ERROR, "[%s] error: expected 64-byte alignment\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto error;
+		}
+		else if (!mod->size_private) {
+			xf86Msg(X_ERROR, "[%s] error: missing device data size\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto error;
+		}
+		else if (sizeof(*dev) != mod->size_private) {
+			xf86Msg(X_ERROR, "[%s] error: wrong device data size\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto error;
+		}
+	}
+
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
 	private->info_gamepad = info_gamepad;
 
 	// NOTE: try to destroy the keyboard as if simulating an error to check during runtime if the xserver handles this gracefully
@@ -714,20 +818,13 @@ static void GamepadCoreUnInit(
 ) {
 	// NOTE: private is an address to a mmap region and so it's safe to nullify and we should because the xserver will try to free it otherwise and crash with flying colors!
 	info_gamepad->private = NULL;
+	if (info_gamepad->private) {
+		// NOTE: we already checked that `mod` is paged-aligned in GamepadCorePreInit() and so we should not need to do that again here
+		struct _GamepadModuleRec *mod = info_gamepad->private;
+		munmap(mod->base, mod->size);
+		info_gamepad->private = NULL;
+	}
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
-	struct _ModuleDesc *module = (typeof(module)) info_gamepad->drv->module;
-	struct _GamepadModuleRec *mod = module->TearDownData;
-	if (mod) {
-		// we clear /dev/input/eventX because next time the drivers get called it would probably change and so the right thing to do is to clear it out
-		mod->size_devname = 0;
-		char *devname = (typeof(devname)) (mod->base + mod->offset_devname);
-		memset(devname, 0, PATH_MAX);
-	}
-	else {
-		// NOTE: for now I have not seen what makes the server to drop the input-driver module and so the teardown data should be present even if PreInit fails in other tries (meaning that the server was still up we tried to run PreInit but failed, that won't kill the server of course, so we can still try again and the module data teardown should still be there)
-		xf86Msg(X_ERROR, "[%s] error: missing teardown data\n", GAMEPAD_DRIVER_NAME);
-	}
-
 #if DEVBUILD
 	// NOTE: clearing the driver name makes it possible to trigger an input-driver hotloading, no need to duplicate the empty string
 	if (src) {
@@ -768,17 +865,6 @@ _X_EXPORT struct _InputDriverRec GAMEPAD = {
 // TODO make sure that you first check that `p` is a valid pointer and that `base` and `size` are not zero
 static void GamepadDriverTeardown(void *p)
 {
-	errno = 0;
-	struct _GamepadModuleRec *priv = (typeof(priv)) p;
-	void *base = (typeof(base)) priv->base;
-	uint64_t size = (typeof(size)) priv->size;
-	int rc = munmap(base, size);
-	if (-1 == rc) {
-		xf86Msg(X_ERROR, "[%s] error: failed to unmap driver data\n", GAMEPAD_DRIVER_NAME);
-		if (errno) {
-			xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-		}
-	}
 	return;
 }
 
@@ -804,65 +890,8 @@ static void *GamepadDriverSetup(
 	int *errmaj,
 	int *errmin
 ) {
-    errno = 0;
-    int64_t rc = sysconf(_SC_PAGESIZE);
-    if (-1 == rc) {
-	xf86Msg(X_ERROR, "[%s] error: failed to query the pagesize", GAMEPAD_DRIVER_NAME);
-	if (errno) {
-	    xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-	}
-	return NULL;
-    }
-    uint64_t const pagesz = (typeof(pagesz)) rc;
-
-    struct _GamepadModuleRec mod = {};
-    struct _GamepadModuleRec *mop = &mod;
-    struct _GamepadDevRec GamepadDevice = {};
-    struct _GamepadDevRec *gdp = &GamepadDevice;
-
-    uint64_t const mask_page = (pagesz - 1);
-    uint64_t const size_mod = sizeof(*mop);
-    uint64_t const size_dev = sizeof(*gdp);
-    uint64_t const cap_path = PATH_MAX;
-    uint64_t const size_path = PATH_MAX;
-    uint64_t const size_pad = PATH_MAX;
-    uint64_t const size_data = (
-	    size_mod +
-	    size_dev +
-	    size_path +
-	    size_pad +
-	    0
-    );
-    uint64_t const size_mmap = ((size_data + mask_page) & (~mask_page));
-    void *base = mmap(NULL, size_mmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    errno = 0;
-    if (MAP_FAILED == base) {
-	xf86Msg(X_ERROR, "[%s] error: failed to map driver data", GAMEPAD_DRIVER_NAME);
-	if (errno) {
-	    xf86Msg(X_ERROR, "[%s] error: %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
-	}
-        return NULL;
-    }
-
-    struct _GamepadModuleRec *priv = (typeof(priv)) base;
-    priv->base = (uintptr_t) base;
-    priv->size = (typeof(priv->size)) size_mmap;
-    priv->offset_devname = ((sizeof(*priv) + 63) & (~63));
-    priv->offset_private = (((priv->offset_devname + cap_path) + 63) & (~63));
-    priv->size_devname = 0;
-    priv->size_private = sizeof(*gdp);
-
-    if ((sizeof(*priv) + PATH_MAX) > size_mmap) {
-	    // this should never happen but it does not hurt to check just in case someone changes the source later down the road
-	    xf86Msg(X_ERROR, "[%s] error: insufficient memory-map size\n", GAMEPAD_DRIVER_NAME);
-	    munmap(base, size_mmap);
-	    return NULL;
-    }
-
-    // FIXME: during setup we have no means of getting the gamepad device that udev detected unless there's only one device; this will have to wait until PreInit() and so move this code there
-    void *TearDownData = base;
     xf86AddInputDriver(&GAMEPAD, module, 0);
-    return TearDownData;
+    return module;
 }
 
 static void GamepadKbdCtrl(
