@@ -768,6 +768,7 @@ static int GamepadCorePreInit(
 
 	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
 	private->info_gamepad = info_gamepad;
+	info_gamepad->private = info_keyboard->private;
 
 	// NOTE: try to destroy the keyboard as if simulating an error to check during runtime if the xserver handles this gracefully
 	rc = Success;
@@ -810,11 +811,13 @@ static void GamepadCoreUnInit(
 	struct _InputInfoRec *info_gamepad,
 	int flags
 ) {
-	// FIXME: if this get called while setting up the keyboard device that will cause the driver to release the virtual memory but this won't execute when an error happens for the gamepad device, also we are not deleting the keyboard device and probably we should and test (even if the xf86-input-joystick does not free it).
 	// NOTE: private is an address to a mmap region and so it's safe to nullify and we should because the xserver will try to free it otherwise and crash with flying colors!
 	if (info_gamepad->private) {
 		// NOTE: we already checked that `mod` is paged-aligned in GamepadCorePreInit() and so we should not need to do that again here
 		struct _GamepadModuleRec *mod = info_gamepad->private;
+		struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
+		// NOTE: we need to nullify this so that when the xserver tries to remove the attached keyboard we won't try to dereference an unmapped region; bear in mind that the xserver eventually will this GamepadCoreUnInit() function. This last call will happen after the user removes the gamepad from the computer.
+		private->info_keyboard->private = NULL;
 		munmap((void*) mod->base, mod->size);
 		info_gamepad->private = NULL;
 	}
