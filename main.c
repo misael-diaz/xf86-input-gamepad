@@ -123,9 +123,7 @@ struct _GamepadModuleRec {
     uintptr_t base;
     uint64_t size;
     uint64_t mask;
-    uint64_t offset_devname;
     uint64_t offset_private;
-    uint64_t size_devname;
     uint64_t size_private;
 };
 
@@ -449,9 +447,7 @@ static void *GamepadCoreVirtualMemory(void)
     priv->base = (uintptr_t) base;
     priv->size = (typeof(priv->size)) size_mmap;
     priv->mask = mask_page;
-    priv->offset_devname = ((sizeof(*priv) + 63) & (~63));
-    priv->offset_private = (((priv->offset_devname + cap_path) + 63) & (~63));
-    priv->size_devname = 0;
+    priv->offset_private = ((sizeof(*priv) + 63) & (~63));
     priv->size_private = sizeof(*gdp);
 
     if ((sizeof(*priv) + PATH_MAX) > size_mmap) {
@@ -660,15 +656,6 @@ static int GamepadCorePreInit(
 	}
 	else {
 		xf86Msg(X_DEBUG, "[%s] debug: updated device name from: %s to: %s\n", GAMEPAD_DRIVER_NAME, stored_devname, updated_devname);
-	}
-
-	if (!mod->size_devname) {
-		xf86Msg(X_NOT_IMPLEMENTED, "[%s] error: need to implement /dev/input/jsX -> /dev/input/eventX mapping\n", GAMEPAD_DRIVER_NAME);
-		rc = BadImplementation;
-		goto error;
-	}
-	else {
-		xf86Msg(X_DEBUG, "[%s] device: %s\n", GAMEPAD_DRIVER_NAME, devname);
 	}
 
 	// NOTE: driver owns the device file descriptor so we are just making sure that the driver capabilities is zero (as expected)
