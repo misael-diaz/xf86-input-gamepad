@@ -516,6 +516,8 @@ static int GamepadDevOpen(
 static int GamepadDevClose(
 	struct _InputInfoRec *info_gamepad
 ) {
+	int rc = Success;
+	return rc;
 }
 
 // TODO:
@@ -631,20 +633,24 @@ static int GamepadDevCtrlProc(
 	break;
 
 	case DEVICE_OFF: {
+		// TODO: close device and unbind fd
 		dev_gamepad->public.on = FALSE;
 	}
 	break;
 
 	case DEVICE_CLOSE: {
+		// TODO: close device and unbind fd
 		dev_gamepad->public.on = FALSE;
 	}
 	break;
 
 	default: {
 		rc = BadImplementation;
-		xf86Msg(X_DEBUG, "[%s] GamepadKbdCtrlProc: error: unknown action\n", GAMEPAD_DRIVER_NAME);
+		xf86Msg(X_DEBUG, "[%s] GamepadDevCtrlProc: error: unknown action\n", GAMEPAD_DRIVER_NAME);
 	}
 	}
+
+	return rc;
 }
 
 static int GamepadCorePreInit(
