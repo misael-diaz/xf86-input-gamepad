@@ -131,18 +131,6 @@ struct _GamepadModuleRec {
 static char const * const stub = GAMEPAD_DRIVER_NAME_STUB;
 #endif
 
-static int GamepadOpen(
-	struct _InputInfoRec *info
-) {
-	// TODO: research probing in joystick device
-	if (info->flags & XI86_SERVER_FD) {
-		xf86Msg(X_ERROR, "[%s] error: driver should own the device file descriptor", GAMEPAD_DRIVER_NAME);
-		return BadImplementation;
-	}
-
-	return -1;
-}
-
 static int GamepadKbdHotplug(
 	struct _InputInfoRec **info_keyboard,
 	struct _InputInfoRec *info_gamepad,
@@ -490,6 +478,94 @@ static int GamepadKbdPreInit(
 	private->fd = -1;
 	// omits setting keyboard Rules-Model-Layout-Variant-Options RMLVO on purpose
 	return rc;
+}
+
+static int GamepadDevOpen(
+	struct _InputInfoRec *info_gamepad
+) {
+	int fd = -1;
+	int rc = BadImplementation;
+	struct _InputAttributes *attrs = info_gamepad->attrs;
+	char *device = attrs->device;
+	struct _GamepadModuleRec *mod = info_gamepad->private;
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
+	if (strstr(device, "js")) {
+		// NOTE: this would be surprising because we updated the device path during GamepadCorePreInit()
+		xf86Msg(X_ERROR, "[%s] error: expected /dev/input/eventX but found device:%s\n", GAMEPAD_DRIVER_NAME, device);
+		rc = BadValue;
+		return rc;
+	}
+
+	errno = 0;
+	// NOTE: omitting the O_NONBLOCK because the xserver uses polling to check when a device is ready for reading and so we shouldn't need to set O_NONBLOCK (see man open for more info); this is opposite to what's done in the xf86-input-joystick driver
+	fd = open(device, O_RDONLY);
+	if (-1 == fd) {
+		xf86Msg(X_ERROR, "[%s] error: failed to open device: %s\n", GAMEPAD_DRIVER_NAME, device);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+		rc = BadRequest;
+		return rc;
+	}
+
+	private->fd = fd;
+	rc = Success;
+	return rc;
+}
+
+static int GamepadDevClose(
+	struct _InputInfoRec *info_gamepad
+) {
+}
+
+// TODO:
+// this is where you find the number of axes and buttons
+// when you disable the analog sticks and all the other buttons other than start, select, and the NESW buttons and the dpad.
+static int GamepadDevInit(
+	struct _InputInfoRec *info_gamepad
+) {
+	return BadImplementation;
+}
+
+static int GamepadDevCtrlProc(
+	struct _DeviceIntRec *dev_gamepad,
+	int what
+) {
+	int rc = Success;
+	struct _InputInfoRec *info_gamepad = dev_gamepad->public.devicePrivate;
+	switch (what) {
+	case DEVICE_INIT: {
+		rc = GamepadDevOpen(info_gamepad);
+
+		if (rc) {
+			xf86Msg(X_ERROR, "[%s] error: device open failed\n", GAMEPAD_DRIVER_NAME);
+			break;
+		}
+		rc = GamepadDevInit(info_gamepad);
+	}
+	break;
+
+	case DEVICE_ON: {
+		// TODO: bind the fd to info_gamepad
+		dev_gamepad->public.on = TRUE;
+	}
+	break;
+
+	case DEVICE_OFF: {
+		dev_gamepad->public.on = FALSE;
+	}
+	break;
+
+	case DEVICE_CLOSE: {
+		dev_gamepad->public.on = FALSE;
+	}
+	break;
+
+	default: {
+		rc = BadImplementation;
+		xf86Msg(X_DEBUG, "[%s] GamepadKbdCtrlProc: error: unknown action\n", GAMEPAD_DRIVER_NAME);
+	}
+	}
 }
 
 static int GamepadCorePreInit(
