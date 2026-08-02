@@ -590,7 +590,8 @@ static int GamepadDevInit(
 	}
 
 	uint8_t axes = 0;
-	for (int32_t code = ABS_X; code != ABS_RESERVED; ++code) {
+	// NOTES: disabling events has nothing to do with being able to probe the absbits and so if you probe all of them you will find the total of the number of axes; the driver does this to know if the gamepad reports the dpad as absolute axes (instead of buttons) and so we only probe the ones that are used for dpads (based on the linux kernel documentation: `linux/Documentation/input/gamepad.rst`).
+	for (int32_t code = ABS_HAT0X; code != ABS_HAT1X; ++code) {
 		if (test_bit(code, absbits)) {
 			++axes;
 		}
