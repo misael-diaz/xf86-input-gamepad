@@ -114,8 +114,8 @@ struct _GamepadDevRec {
 	struct _InputInfoRec *info_gamepad;
 	struct _InputInfoRec *info_keyboard;
 	int fd;
-	uint8_t btno;
-	uint8_t axno;
+	uint8_t buttons;
+	uint8_t axes;
 	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
 };
 
@@ -524,6 +524,85 @@ static int GamepadDevClose(
 static int GamepadDevInit(
 	struct _InputInfoRec *info_gamepad
 ) {
+	struct _GamepadModuleRec *mod = info_gamepad->private;
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
+	uint64_t keybits[NBITS(KEY_CNT)];
+	uint64_t absbits[NBITS(ABS_CNT)];
+	struct input_mask im = {};
+
+	uint8_t buttons = 0;
+	int fd = private->fd;
+	int rc = BadImplementation;
+	if (-1 == fd) {
+		xf86Msg(X_ERROR, "[%s] error: expected a valid file descriptor\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+
+	memset(keybits, 0, sizeof(keybits));
+
+	errno = 0;
+	rc = ioctl(fd, EVIOCGBIT(EV_KEY, NBYTES(KEY_CNT)), keybits);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] error: failed to probe gamepad key keybits\n", GAMEPAD_DRIVER_NAME);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+		rc = BadRequest;
+		return rc;
+	}
+
+	buttons = 0;
+	for (int32_t code = BTN_GAMEPAD; code != BTN_DIGI; ++code) {
+		if (test_bit(code, keybits)) {
+			++buttons;
+		}
+	}
+
+	// NOTE: disables (analog) axes while keeping dpad buttons enabled
+	memset(absbits, 0, sizeof(absbits));
+	absbits[0] |= (1 << ABS_HAT0X) | (1 << ABS_HAT0Y);
+	im.type = EV_ABS;
+	im.codes_ptr = (typeof(im.codes_ptr)) absbits;
+	im.codes_size = NBYTES(ABS_CNT);
+	errno = 0;
+	rc = ioctl(fd, EVIOCSMASK, &im);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] error: failed to disable gamepad analog sticks\n", GAMEPAD_DRIVER_NAME);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+		rc = BadRequest;
+		return rc;
+	}
+
+	memset(absbits, 0, sizeof(absbits));
+	rc = ioctl(fd, EVIOCGBIT(EV_ABS, NBYTES(ABS_CNT)), absbits);
+	if (-1 == rc) {
+		xf86Msg(X_ERROR, "[%s] error: failed to probe gamepad absolute axes (dpad)\n", GAMEPAD_DRIVER_NAME);
+		if (errno) {
+			xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+		}
+		rc = BadRequest;
+		return rc;
+	}
+
+	uint8_t axes = 0;
+	for (int32_t code = ABS_X; code != ABS_RESERVED; ++code) {
+		if (test_bit(code, absbits)) {
+			++axes;
+		}
+	}
+
+	if (2 != axes) {
+		// NOTES: if we don't bail here the user won't be able to use the dpad, am not expecting users to reach me out to have the driver support gamepads that report dpads as buttons and this is why I am not doing it even though I can do it
+		xf86Msg(X_ERROR, "[%s] error: expected a dpad reported in the absolute axes bits\n", GAMEPAD_DRIVER_NAME);
+		rc = BadRequest;
+		return rc;
+	}
+
+	private->axes = axes;
+	private->buttons = buttons;
 	return BadImplementation;
 }
 
