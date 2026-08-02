@@ -79,28 +79,15 @@ struct _ModuleDesc {
     const XF86ModuleVersionInfo *VersionInfo;
 };
 
-struct _KeybdCtrl {
-	KeybdCtrl ctrl;
-};
-
-enum _GAMEPADEVENT {
-    EVENT_NONE,
-    EVENT_BUTTON,
-    EVENT_AXIS
-};
-
 struct _GamepadDevRec;
 typedef int (*GamepadOpenFn)(
-	struct _GamepadDevRec *gamepad,
-	Bool probe
+	struct _GamepadDevRec *gamepad
 );
 
 typedef void (*GamepadCloseFn)(struct _GamepadDevRec *gamepad);
 
 typedef int (*GamepadReadFn)(
-	struct _GamepadDevRec *gamepad,
-	enum _GAMEPADEVENT *event,
-	int *number
+	struct _GamepadDevRec *gamepad
 );
 
 // KbRMLVO: Keyboard Rules Model Layout Variant Options
@@ -113,7 +100,9 @@ struct _GamepadDevRec {
 	GamepadReadFn read;
 	struct _InputInfoRec *info_gamepad;
 	struct _InputInfoRec *info_keyboard;
+	struct input_event iev;
 	int fd;
+	uint8_t unsynced;
 	uint8_t buttons;
 	uint8_t axes;
 	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
@@ -255,7 +244,7 @@ static int GamepadGetDeviceName(char *gamepad, char const * const product_name)
 		}
 		strncat(devname, namelist[i]->d_name, PATH_MAX - 1);
 		devname[PATH_MAX - 1] = 0;
-		int const fd = open(devname, O_RDONLY);
+		int const fd = open(devname, O_RDONLY | O_NONBLOCK);
 		if (-1 == fd) {
 			xf86Msg(X_ERROR, "[%s] error: failed to open: %s\n", GAMEPAD_DRIVER_NAME, devname);
 			if (errno) {
@@ -480,11 +469,13 @@ static int GamepadKbdPreInit(
 	return rc;
 }
 
-static int GamepadDevOpen(
-	struct _InputInfoRec *info_gamepad
+// TODO bind this function to underlying type
+static int _GamepadDevOpen(
+	struct _GamepadDevRec *dev
 ) {
 	int fd = -1;
 	int rc = BadImplementation;
+	struct _InputInfoRec *info_gamepad = dev->info_gamepad;
 	struct _InputAttributes *attrs = info_gamepad->attrs;
 	char *device = attrs->device;
 	struct _GamepadModuleRec *mod = info_gamepad->private;
@@ -511,6 +502,113 @@ static int GamepadDevOpen(
 	private->fd = fd;
 	rc = Success;
 	return rc;
+}
+
+// NOTE: xf86ReadSerial() does not account for EAGAIN (only for EINTR) and so the driver handles EAGAIN because the device file descriptor was openned in non-blocking mode and so read() may set EAGAIN in addition to EINTR.
+static int64_t _GamepadDevReadBuf(
+	int fd,
+	char *buf,
+	uint64_t const size
+) {
+	int sw = 0;
+	int64_t rc = 0;
+	int64_t bytes_read = 0;
+	char *p = buf;
+	do {
+		errno = 0;
+		rc = read(fd, buf, size - bytes_read);
+		if (0 > rc) {
+			if (!errno) {
+				// NOTE: this should never happen because `errno` should be set on errors by read()
+				xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: error surprising read() found an error but did not set errno accordingly\n", GAMEPAD_DRIVER_NAME);
+				rc = -1;
+				return rc;
+			}
+			if ((EAGAIN != errno) && (EINTR != errno)) {
+				xf86Msg(X_ERROR, "[%s] %s\n", GAMEPAD_DRIVER_NAME, strerror(errno));
+				rc = -1;
+				return rc;
+			} else {
+				sw = 1;
+			}
+		} else {
+			bytes_read += rc;
+			p += bytes_read;
+			if (size < bytes_read) {
+				xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: error surprising we have just read more bytes than the buffer size\n", GAMEPAD_DRIVER_NAME);
+				rc = -1;
+				return rc;
+			}
+			else if (size == bytes_read) {
+				sw = 0;
+			}
+			else {
+				sw = 1;
+			}
+		}
+	} while (sw);
+
+	if (size != bytes_read) {
+		xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: error bytes_read does not match the buffer size\n", GAMEPAD_DRIVER_NAME);
+		rc = -1;
+		return rc;
+	}
+
+	return bytes_read;
+}
+
+// TODO: don't forget to set unsynced on SYN_DROPPED
+static int _GamepadDevRead(
+	struct _GamepadDevRec *dev
+) {
+	int rc = Success;
+	struct input_event *iev = &dev->iev;
+	errno = 0;
+	// unlike xf86-input-joystick driver we are reading from the device ourselves and hope to read a single input-event in one go.
+	// TODO: read if xserver uses edge or leveled-triggered polls, the former requires non-blocking and waiting for EAGAIN (see man epoll) while the latter behaves just like poll
+	int64_t bytes_read = _GamepadDevReadBuf(dev->fd, iev, sizeof(*iev));
+	if (-1 == bytes_read) {
+		xf86Msg(X_ERROR, "[%s] _GamepadDevRead: error when attempting to read events from gamepad device\n", GAMEPAD_DRIVER_NAME);
+		rc = BadRequest;
+		return rc;
+	}
+	else if (sizeof(*iev) != bytes_read) {
+		// NOTE: in the general sense it's not an error to read fewer bytes than the provided buffer; however, if we cannot read an input event that would be surprising because the xserver is polling the device to read events and so we shouldn't be in a position where there's data to read but not enough bytes to fill an input event.
+		xf86Msg(X_ERROR, "[%s] _GamepadDevRead: error surprising partial read of input-event\n", GAMEPAD_DRIVER_NAME);
+		rc = BadRequest;
+		return rc;
+	}
+
+	// TODO: while `unsynced` we must wait for the SYN_REPORT in order to resume the task of translating linux kernel input-events into keyboard xkb events.
+	// NOTE: even if this is remotely going to happen, this is what I would expect the driver to handle sync events from the linux kernel.
+	if (EV_SYN == iev->type) {
+		if (SYN_DROPPED == iev->value) {
+			dev->unsynced = 1;
+		}
+		else if (SYN_REPORT == iev->value) {
+			if (dev->unsynced) {
+				dev->unsynced ^= 1;
+			}
+		}
+	}
+
+	rc = Success;
+	return rc;
+}
+
+static int GamepadDevOpen(
+	struct _InputInfoRec *info_gamepad
+) {
+	int rc = Success;
+	// NOTE: this is only one of the problems if we mess up in the implementation but I don't feel it's great to write over and over again the same checks at least not right now; so if you are up for it later write the rest
+	if (!info_gamepad->private) {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevOpen: missing private data\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+	struct _GamepadModuleRec *mod = info_gamepad->private;
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
+	return _GamepadDevOpen(private);
 }
 
 static int GamepadDevClose(
