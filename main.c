@@ -473,7 +473,7 @@ static int GamepadKbdPreInit(
 	info_keyboard->type_name = XI_JOYSTICK;
 
 	struct _GamepadModuleRec *mod = base;
-	struct _GamepadDevRec *private = (((char*) mod->base) + mod->offset_private);
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
 	private->info_keyboard = info_keyboard;
 	private->fd = -1;
 	// omits setting keyboard Rules-Model-Layout-Variant-Options RMLVO on purpose
