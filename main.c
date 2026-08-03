@@ -46,6 +46,16 @@ int statx(
 #define PACKAGE_VERSION_MINOR 0
 #define PACKAGE_VERSION_PATCHLEVEL 0
 
+// evdev keyboard keycodes borrowed from /usr/share/X11/xkb/keycodes/evdev
+#define XKB_EVDEV_KEYCODE_W      25
+#define XKB_EVDEV_KEYCODE_A      38
+#define XKB_EVDEV_KEYCODE_S      39
+#define XKB_EVDEV_KEYCODE_D      40
+#define XKB_EVDEV_KEYCODE_UP    111
+#define XKB_EVDEV_KEYCODE_LEFT  113
+#define XKB_EVDEV_KEYCODE_RIGHT 114
+#define XKB_EVDEV_KEYCODE_DOWN  116
+
 // REFS:
 // https://github.com/torvalds/linux/tree/master/Documentation/input/event-codes.rst
 // https://github.com/torvalds/linux/tree/master/Documentation/input/gamepad.rst
@@ -557,7 +567,6 @@ static int64_t _GamepadDevReadBuf(
 	return bytes_read;
 }
 
-// TODO: don't forget to set unsynced on SYN_DROPPED
 static int _GamepadDevRead(
 	struct _GamepadDevRec *dev
 ) {
@@ -565,7 +574,6 @@ static int _GamepadDevRead(
 	struct input_event *iev = &dev->iev;
 	errno = 0;
 	// unlike xf86-input-joystick driver we are reading from the device ourselves and hope to read a single input-event in one go.
-	// TODO: read if xserver uses edge or leveled-triggered polls, the former requires non-blocking and waiting for EAGAIN (see man epoll) while the latter behaves just like poll
 	int64_t bytes_read = _GamepadDevReadBuf(dev->fd, iev, sizeof(*iev));
 	if (-1 == bytes_read) {
 		xf86Msg(X_ERROR, "[%s] _GamepadDevRead: error when attempting to read events from gamepad device\n", GAMEPAD_DRIVER_NAME);
@@ -573,13 +581,11 @@ static int _GamepadDevRead(
 		return rc;
 	}
 	else if (sizeof(*iev) != bytes_read) {
-		// NOTE: in the general sense it's not an error to read fewer bytes than the provided buffer; however, if we cannot read an input event that would be surprising because the xserver is polling the device to read events and so we shouldn't be in a position where there's data to read but not enough bytes to fill an input event.
 		xf86Msg(X_ERROR, "[%s] _GamepadDevRead: error surprising partial read of input-event\n", GAMEPAD_DRIVER_NAME);
 		rc = BadRequest;
 		return rc;
 	}
 
-	// TODO: while `unsynced` we must wait for the SYN_REPORT in order to resume the task of translating linux kernel input-events into keyboard xkb events.
 	// NOTE: even if this is remotely going to happen, this is what I would expect the driver to handle sync events from the linux kernel.
 	if (EV_SYN == iev->type) {
 		if (SYN_DROPPED == iev->value) {
@@ -594,6 +600,97 @@ static int _GamepadDevRead(
 
 	rc = Success;
 	return rc;
+}
+
+static void GamepadDevRead(
+	struct _InputInfoRec *info_gamepad
+) {
+	int rc = Success;
+	int unsigned keycode = 0;
+	int keypressed = 0;
+	struct _GamepadModuleRec *mod = info_gamepad->private;
+	if (-1 == info_gamepad->fd) {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: disabled device\n", GAMEPAD_DRIVER_NAME);
+		return;
+	}
+	else if (!info_gamepad->fd) {
+		// fd == 0 is reserved for stdin, this probably means that the device was not initialized properly
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: uninitialized device\n", GAMEPAD_DRIVER_NAME);
+		return;
+	}
+	else if (!info_gamepad->dev) {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: missing backpointer to gamepad device\n", GAMEPAD_DRIVER_NAME);
+		return;
+	}
+	else if (!mod) {
+		// TODO: add other checks to make sure that validate the private data if present
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: missing private data\n", GAMEPAD_DRIVER_NAME);
+		return;
+	}
+
+	struct _GamepadDevRec *dev = (void*) (((char*) mod->base) + mod->offset_private);
+	if (!dev->read) {
+		goto disable;
+		return;
+	}
+
+	rc = dev->read(dev);
+	if (rc) {
+		goto disable;
+	}
+
+	// NOTE: our event buffer has overflowed and as a consequence of this the device is no longer synchronized and so we have to wait for the linux kernel to inform us when we can resume processing events; for the moment the right thing to do is to abort further processing but this does not mean that the device should be disabled (this is temporary).
+	if (dev->unsynced) {
+		return;
+	}
+
+	// TODO: the fun part starts we need to find out how to map kernel input events to evdev xkb event codes to know what to do here; from /usr/share/X11/xbd/keycodes/evdev:
+	// <UP> = 111; <LEFT> = 113; <DOWN> = 116; <RGHT> = 114;
+
+	keycode = 0;
+	keypressed = (0 == dev->iev.value) ? 1 : 0;
+	if (dev->iev.type == EV_ABS) {
+		if (ABS_HAT0X == dev->iev.code) {
+			keycode = ((0 > dev->iev.value)
+				? XKB_EVDEV_KEYCODE_LEFT
+				: XKB_EVDEV_KEYCODE_RIGHT
+			);
+		}
+		else if (ABS_HAT0Y == dev->iev.code) {
+			keycode = ((0 > dev->iev.value)
+				? XKB_EVDEV_KEYCODE_UP
+				: XKB_EVDEV_KEYCODE_DOWN
+			);
+		}
+	}
+	else if (dev->iev.type == EV_KEY) {
+		if (BTN_NORTH == dev->iev.code) {
+			keycode = XKB_EVDEV_KEYCODE_W;
+		}
+		else if (BTN_WEST == dev->iev.code) {
+			keycode = XKB_EVDEV_KEYCODE_A;
+		}
+		else if (BTN_SOUTH == dev->iev.code) {
+			keycode = XKB_EVDEV_KEYCODE_S;
+		}
+		else if (BTN_EAST == dev->iev.code) {
+			keycode = XKB_EVDEV_KEYCODE_D;
+		}
+	}
+
+	// NOTE: user pressed other buttons that we have yet to define and so we ignore those events (for now)
+	if (!keycode) {
+		return;
+	}
+
+	xf86PostKeyboardEvent(info_gamepad->dev, keycode, keypressed);
+	return;
+disable: {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: missing internal read function\n", GAMEPAD_DRIVER_NAME);
+		xf86RemoveEnabledDevice(info_gamepad);
+		info_gamepad->fd = -1;
+		return;
+	 }
 }
 
 static int GamepadDevOpen(
