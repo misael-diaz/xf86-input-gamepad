@@ -114,7 +114,6 @@ struct _GamepadDevRec {
 	uint8_t unsynced;
 	uint8_t buttons;
 	uint8_t axes;
-	// TODO: research what buttons and axes data do you need for this driver and that means reading the xf86 code, don't want to make the mistake of adding features the driver does not really need without understanding first
 };
 
 struct _GamepadModuleRec {
