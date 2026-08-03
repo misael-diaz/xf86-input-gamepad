@@ -476,7 +476,6 @@ static int GamepadKbdPreInit(
 	return rc;
 }
 
-// TODO bind this function to underlying type
 static int _GamepadDevOpen(
 	struct _GamepadDevRec *dev
 ) {
@@ -754,9 +753,6 @@ static int _GamepadDevClose(
 	return rc;
 }
 
-// TODO:
-// this is where you find the number of axes and buttons
-// when you disable the analog sticks and all the other buttons other than start, select, and the NESW buttons and the dpad.
 static int GamepadDevInit(
 	struct _InputInfoRec *info_gamepad
 ) {
