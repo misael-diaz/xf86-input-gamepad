@@ -392,6 +392,7 @@ static int GamepadKbdCtrlProc(
 	return rc;
 }
 
+// TODO: provide the module so that we can get the pagesize when the module was loaded
 static void *GamepadCoreVirtualMemory(void)
 {
     errno = 0;
@@ -1282,6 +1283,7 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 	.checksum = {}
 };
 
+// TODO: store the pagesize in the teardowndata of the module so that you can use that to validate the private data, this is a reliable way of doing this verification instead of storing the pagesize in the private data itself (which only works when the private data is okay)
 // the pointer type is defined as typedef void* pointer in /usr/include/X11/Xdefs.h
 static void *GamepadDriverSetup(
 	void *module,
