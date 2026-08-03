@@ -922,7 +922,6 @@ static int GamepadDevCtrlProc(
 	switch (what) {
 	case DEVICE_INIT: {
 		rc = GamepadDevOpen(info_gamepad);
-
 		if (rc) {
 			xf86Msg(X_ERROR, "[%s] error: device open failed\n", GAMEPAD_DRIVER_NAME);
 			break;
@@ -932,20 +931,44 @@ static int GamepadDevCtrlProc(
 	break;
 
 	case DEVICE_ON: {
-		// TODO: bind the fd to info_gamepad
+		// NOTE: even if the device has been initialized we don't expect to have an unmasked (or valid) file descriptor; also if the device controller is enabling the device after a shutdown we don't expect an unmasked (or valid) file descriptor. This is why we complain about this.
+		if (-1 != info_gamepad->fd) {
+			xf86Msg(X_ERROR, "[%s] error: device was not properly initialized or properly shutdown\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			break;
+		}
+		// TODO CHECK AGAIN THE PRIVATE DATA, IN THIS CASE THE FILE DESCRIPTOR IF WE DON'T HAVE ONE THAT'S A SERIOUS PROBLEM
+
+		// NOTE: enabling the device here to inform GamepadDevOpen() that we are asking it to open an enabled device; otherwise it will refuse.
 		dev_gamepad->public.on = TRUE;
+		rc = GamepadDevOpen(info_gamepad);
+		if (rc) {
+			xf86Msg(X_ERROR, "[%s] error: failed to fetch the device file descriptor\n", GAMEPAD_DRIVER_NAME);
+
+			dev_gamepad->public.on = FALSE;
+			break;
+		}
+		xf86AddEnabledDevice(info_gamepad);
 	}
 	break;
 
 	case DEVICE_OFF: {
-		// TODO: close device and unbind fd
+		 // DEVICE OFF means that we unregister the device file descriptor but that does not imply closing the device
 		dev_gamepad->public.on = FALSE;
+		if (0 < info_gamepad->fd) {
+			xf86RemoveEnabledDevice(info_gamepad);
+			info_gamepad->fd = -1;
+		}
 	}
-	break;
-
+	__attribute__ ((fallthrough));
+	// FALLING THROUGH ON PURPOSE: we don't want the event buffer that the linux kernal has given us to overflow because we stopped reading input-events and so the right thing to do here is to close the device. Even if the xf86-input-joystick does this, we are not merely following along we have reasoned why we should also close the device.
 	case DEVICE_CLOSE: {
-		// TODO: close device and unbind fd
 		dev_gamepad->public.on = FALSE;
+		if (0 < info_gamepad->fd) {
+			xf86RemoveEnabledDevice(info_gamepad);
+			info_gamepad->fd = -1;
+		}
+		rc = GamepadDevClose(info_gamepad);
 	}
 	break;
 
