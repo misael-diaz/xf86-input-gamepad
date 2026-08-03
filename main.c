@@ -491,6 +491,17 @@ static int _GamepadDevOpen(
 		return rc;
 	}
 
+	if (!private->fd) {
+		xf86Msg(X_ERROR, "[%s] error: uninitialized device file descriptor\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+	else if (-1 != private->fd) {
+		xf86Msg(X_DEBUG, "[%s] error: maybe device was disabled but the file descriptor was not masked\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+
 	errno = 0;
 	// NOTE: omitting the O_NONBLOCK because the xserver uses polling to check when a device is ready for reading and so we shouldn't need to set O_NONBLOCK (see man open for more info); this is opposite to what's done in the xf86-input-joystick driver
 	fd = open(device, O_RDONLY);
@@ -687,6 +698,7 @@ disable: {
 	 }
 }
 
+// NOTE: this function is reentrant, meaning that we can call it safely multiple times and it does the right things (as long we are running in a single thread or with mutexes); however, it will complain on some cases to err on the safe side.
 static int GamepadDevOpen(
 	struct _InputInfoRec *info_gamepad
 ) {
