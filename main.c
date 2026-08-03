@@ -522,16 +522,24 @@ static int _GamepadDevOpen(
 // NOTE: xf86ReadSerial() does not account for EAGAIN (only for EINTR) and so the driver handles EAGAIN because the device file descriptor was openned in non-blocking mode and so read() may set EAGAIN in addition to EINTR.
 static int64_t _GamepadDevReadBuf(
 	int fd,
-	char *buf,
+	void *vbuf,
 	uint64_t const size
 ) {
 	int sw = 0;
 	int64_t rc = 0;
 	int64_t bytes_read = 0;
+	int64_t sz = size;
+	if (0 < sz) {
+		// NOTE: normally this would not be a problem but adding the check here for completeness, and I would love to do a static assertion here but did not wanted to raise the standard requirements to compile this driver (so I am okay with the runtime check)
+		xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: buffer size cannot be represented with a positive signed 64-bit integer\n", GAMEPAD_DRIVER_NAME);
+		rc = -1;
+		return rc;
+	}
+	char *buf = vbuf;
 	char *p = buf;
 	do {
 		errno = 0;
-		rc = read(fd, buf, size - bytes_read);
+		rc = read(fd, buf, sz - bytes_read);
 		if (0 > rc) {
 			if (!errno) {
 				// NOTE: this should never happen because `errno` should be set on errors by read()
@@ -549,12 +557,12 @@ static int64_t _GamepadDevReadBuf(
 		} else {
 			bytes_read += rc;
 			p += bytes_read;
-			if (size < bytes_read) {
+			if (sz < bytes_read) {
 				xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: error surprising we have just read more bytes than the buffer size\n", GAMEPAD_DRIVER_NAME);
 				rc = -1;
 				return rc;
 			}
-			else if (size == bytes_read) {
+			else if (sz == bytes_read) {
 				sw = 0;
 			}
 			else {
@@ -563,7 +571,7 @@ static int64_t _GamepadDevReadBuf(
 		}
 	} while (sw);
 
-	if (size != bytes_read) {
+	if (sz != bytes_read) {
 		xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: error bytes_read does not match the buffer size\n", GAMEPAD_DRIVER_NAME);
 		rc = -1;
 		return rc;
