@@ -539,7 +539,7 @@ static int64_t _GamepadDevReadBuf(
 	char *p = buf;
 	do {
 		errno = 0;
-		rc = read(fd, buf, sz - bytes_read);
+		rc = read(fd, p, sz - bytes_read);
 		if (0 > rc) {
 			if (!errno) {
 				// NOTE: this should never happen because `errno` should be set on errors by read()
