@@ -708,10 +708,52 @@ static int GamepadDevOpen(
 	return _GamepadDevOpen(private);
 }
 
-static int GamepadDevClose(
+// TODO add inline function for checking private data
+static int _GamepadDevClose(
 	struct _InputInfoRec *info_gamepad
 ) {
+	int sw = 0;
 	int rc = Success;
+	if (!info_gamepad->private) {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevOpen: missing private data\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+	struct _GamepadModuleRec *mod = info_gamepad->private;
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
+
+	// TODO check if fd is zero to complain about that
+	if (-1 == private->fd) {
+		rc = Success;
+		return rc;
+	}
+
+	// NOTE: we could be interrupted while closing and so we must handle that
+	sw = 0;
+	do {
+		errno = 0;
+		rc = close(private->fd);
+		if (-1 == rc) {
+			if (!errno) {
+				// TODO AS BEFORE REPORT THIS IS A MAJOR SYSTEM ERROR
+				rc = BadRequest;
+				return rc;
+			}
+			if (EINTR != errno) {
+				// TODO report error
+				rc = BadRequest;
+				return rc;
+			}
+			else {
+				sw = 1;
+			}
+		}
+		else {
+			sw = 0;
+		}
+	} while (sw);
+
+	private->fd = -1;
 	return rc;
 }
 
