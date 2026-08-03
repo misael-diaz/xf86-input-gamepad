@@ -843,6 +843,9 @@ static int GamepadDevInit(
 
 	private->axes = axes;
 	private->buttons = buttons;
+	private->open = _GamepadDevOpen;
+	private->read = _GamepadDevRead;
+	private->close = _GamepadDevClose;
 	return BadImplementation;
 }
 
