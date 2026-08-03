@@ -717,9 +717,38 @@ static int GamepadDevOpen(
 		rc = BadImplementation;
 		return rc;
 	}
+	struct _DeviceIntRec *dev = info_gamepad->dev;
 	struct _GamepadModuleRec *mod = info_gamepad->private;
 	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
-	return _GamepadDevOpen(private);
+	if (0 < private->fd) {
+		// TODO: do this if the device is actually enabled dev.public.on is TRUE, that would make us reentrant but complain if the device is OFF but we have a private copy of the file descriptor (an error on our part)
+		if (TRUE == dev->public.on) {
+			info_gamepad->fd = private->fd;
+			rc = Success;
+			return rc;
+		}
+		else {
+			xf86Msg(X_ERROR, "[%s] error: GamepadDevOpen: device is off and yet we did not masked the file descriptor\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			return rc;
+		}
+	}
+
+	if (-1 != private->fd) {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevOpen: about to open the gamepad device but the file descriptor is not masked\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+
+	rc = _GamepadDevOpen(private);
+	if (rc) {
+		return rc;
+	}
+
+	rc = Success;
+	// NOTE: even if we have a valid internal file descriptor we are not going to get it yet, that will depend on the context where this function is called
+	info_gamepad->fd = -1;
+	return rc;
 }
 
 // TODO add inline function for checking private data
@@ -857,6 +886,8 @@ static int GamepadDevInit(
 	private->open = _GamepadDevOpen;
 	private->read = _GamepadDevRead;
 	private->close = _GamepadDevClose;
+	// NOTE: even though we have a valid file descriptor we are not going to copy it into the input info record until the device controller issues a DEVICE_ON request
+	info_gamepad->fd = -1;
 	return BadImplementation;
 }
 
