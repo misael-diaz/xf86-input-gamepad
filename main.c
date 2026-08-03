@@ -94,7 +94,7 @@ typedef int (*GamepadOpenFn)(
 	struct _GamepadDevRec *gamepad
 );
 
-typedef void (*GamepadCloseFn)(struct _GamepadDevRec *gamepad);
+typedef int (*GamepadCloseFn)(struct _GamepadDevRec *gamepad);
 
 typedef int (*GamepadReadFn)(
 	struct _GamepadDevRec *gamepad
@@ -753,18 +753,11 @@ static int GamepadDevOpen(
 
 // TODO add inline function for checking private data
 static int _GamepadDevClose(
-	struct _InputInfoRec *info_gamepad
+	struct _GamepadDevRec *dev
 ) {
 	int sw = 0;
 	int rc = Success;
-	if (!info_gamepad->private) {
-		xf86Msg(X_ERROR, "[%s] error: GamepadDevOpen: missing private data\n", GAMEPAD_DRIVER_NAME);
-		rc = BadImplementation;
-		return rc;
-	}
-	struct _GamepadModuleRec *mod = info_gamepad->private;
-	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
-
+	struct _GamepadDevRec *private = dev;
 	// TODO check if fd is zero to complain about that
 	if (-1 == private->fd) {
 		rc = Success;
@@ -798,6 +791,35 @@ static int _GamepadDevClose(
 
 	private->fd = -1;
 	return rc;
+}
+
+// NOTES: this is a reentrant function, it does not matter how many times you call it, it does the right things; however, it will still complain in some cases to err on the safe side.
+static int GamepadDevClose(
+	struct _InputInfoRec *info_gamepad
+) {
+	int rc = Success;
+	if (!info_gamepad->private) {
+		xf86Msg(X_ERROR, "[%s] error: GamepadDevOpen: missing private data\n", GAMEPAD_DRIVER_NAME);
+		rc = BadImplementation;
+		return rc;
+	}
+	struct _DeviceIntRec *dev = info_gamepad->dev;
+	struct _GamepadModuleRec *mod = info_gamepad->private;
+	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
+	// TODO add checks for proper initialization of private data
+	if (-1 == private->fd) {
+		if (TRUE == dev->public.on) {
+			// NOTE: it should not happen, there's no way the gamepad device should be enabled when there's no valid file descriptor
+			rc = BadImplementation;
+			return rc;
+		}
+		else {
+			rc = Success;
+			return rc;
+		}
+	}
+
+	return _GamepadDevClose(private);
 }
 
 static int GamepadDevInit(
