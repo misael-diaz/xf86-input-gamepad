@@ -103,7 +103,6 @@ typedef int (*GamepadReadFn)(
 // KbRMLVO: Keyboard Rules Model Layout Variant Options
 // keycodes (evdev, xfree86, etc.): /usr/share/X11/xkb/keycodes
 
-// TODO: instead of a char* for devname use a suitable offset for holding the device name, this is far better than using a pointer and having to free() the memory of devname
 struct _GamepadDevRec {
 	GamepadOpenFn open;
 	GamepadCloseFn close;
