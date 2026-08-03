@@ -465,7 +465,6 @@ static int GamepadKbdPreInit(
 	info_keyboard->control_proc = NULL;
 	info_keyboard->switch_mode = NULL;
 	info_keyboard->fd = -1;
-	// TODO: define a suitable data structure for the private data
 	info_keyboard->private = base;
 	info_keyboard->type_name = XI_JOYSTICK;
 
