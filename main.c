@@ -1234,8 +1234,6 @@ static void GamepadCoreUnInit(
 	return;
 }
 
-// TODO: impl Core functions
-//
 // `_X_EXPORT' is defined in X11/Xfuncproto.h:
 //
 // #DEFINE _X_EXPORT __attribute__((visibility("default")))
