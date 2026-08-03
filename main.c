@@ -1250,9 +1250,11 @@ _X_EXPORT struct _InputDriverRec GAMEPAD = {
 #endif
 };
 
-// TODO make sure that you first check that `p` is a valid pointer and that `base` and `size` are not zero
 static void GamepadDriverTeardown(void *p)
 {
+	if (!p) {
+		return;
+	}
 	return;
 }
 
