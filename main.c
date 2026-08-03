@@ -176,7 +176,6 @@ static int GamepadKbdHotplug(
 	// NOTE: in xf86ActivateDevice() dev_keyboard->public.devicePrivate references the InputInfoRec data structure and it then binds the device to the InputInfoRec data structure
 	*info_keyboard = dev_keyboard->public.devicePrivate;
 
-	// TODO: if we find an error here we probably want to delete `info_keyboard` and also we need to check if we do that if the xserver frees all the allocated data along with it (I think it does but it does not hurt to read the code again for this particular task). For now I am assuming that xf86DeleteInput() does the right things.
 	if (strcmp(name, (*info_keyboard)->name)) {
 		rc = BadImplementation;
 		xf86Msg(X_ERROR, "[%s] error: name mismatch: name: %s name: %s\n", GAMEPAD_DRIVER_NAME, (*info_keyboard)->name, name);
