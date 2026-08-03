@@ -944,7 +944,7 @@ static int GamepadCorePreInit(
 	}
 
 	info_gamepad->device_control = GamepadDevCtrlProc;
-	info_gamepad->read_input = NULL; // TODO impl GamepadCoreRead
+	info_gamepad->read_input = GamepadDevRead;
 	info_gamepad->control_proc = NULL; // NOTE: `control_proc` only needed if we intend to support DEVICE_CORE, DEVICE_ABS_CALIB, DEVICE_ABS_AREA (this is what I know from reading the xserver source code but what modes are these are still elusive TODO: research this)
 	info_gamepad->switch_mode = NULL; // NOTE: only needed for devices that can switch reporting relative to absolute position
 	if (info_gamepad->drv) {
