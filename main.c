@@ -910,7 +910,8 @@ static int GamepadDevInit(
 	private->close = _GamepadDevClose;
 	// NOTE: even though we have a valid file descriptor we are not going to copy it into the input info record until the device controller issues a DEVICE_ON request
 	info_gamepad->fd = -1;
-	return BadImplementation;
+	rc = Success;
+	return rc;
 }
 
 static int GamepadDevCtrlProc(
