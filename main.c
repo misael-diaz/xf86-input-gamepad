@@ -448,7 +448,6 @@ static void *GamepadCoreVirtualMemory(void)
     return base;
 }
 
-// TODO implement PreInit for keyboard device
 static int GamepadKbdPreInit(
 	struct _InputDriverRec *driver_gamepad,
 	struct _InputInfoRec *info_keyboard,
