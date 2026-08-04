@@ -593,7 +593,7 @@ static int _GamepadDevRead(
 		rc = BadRequest;
 		return rc;
 	}
-	else if (sizeof(*iev) != bytes_read) {
+	else if (((int64_t) sizeof(*iev)) != bytes_read) {
 		xf86Msg(X_ERROR, "[%s] _GamepadDevRead: error surprising partial read of input-event\n", GAMEPAD_DRIVER_NAME);
 		rc = BadRequest;
 		return rc;
