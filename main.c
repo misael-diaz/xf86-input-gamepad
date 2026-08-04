@@ -528,7 +528,7 @@ static int64_t _GamepadDevReadBuf(
 	int64_t rc = 0;
 	int64_t bytes_read = 0;
 	int64_t sz = size;
-	if (0 < sz) {
+	if (0 > sz) {
 		// NOTE: normally this would not be a problem but adding the check here for completeness, and I would love to do a static assertion here but did not wanted to raise the standard requirements to compile this driver (so I am okay with the runtime check)
 		xf86Msg(X_ERROR, "[%s] _GamepadDevReadBuf: buffer size cannot be represented with a positive signed 64-bit integer\n", GAMEPAD_DRIVER_NAME);
 		rc = -1;
