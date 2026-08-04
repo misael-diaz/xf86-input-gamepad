@@ -131,7 +131,7 @@ static char const * const stub = GAMEPAD_DRIVER_NAME_STUB;
 static int GamepadKbdHotplug(
 	struct _InputInfoRec **info_keyboard,
 	struct _InputInfoRec *info_gamepad,
-	int flags
+	int flags __attribute__ ((unused))
 ) {
 	int rc = BadImplementation;
 	struct _DeviceIntRec *dev_keyboard = NULL;
@@ -449,9 +449,9 @@ static void *GamepadCoreVirtualMemory(void)
 }
 
 static int GamepadKbdPreInit(
-	struct _InputDriverRec *driver_gamepad,
+	struct _InputDriverRec *driver_gamepad __attribute__ ((unused)),
 	struct _InputInfoRec *info_keyboard,
-	int flags
+	int flags __attribute__ ((unused))
 ) {
 	int rc = Success;
 	void *base = GamepadCoreVirtualMemory();
@@ -1297,9 +1297,9 @@ mhandler: {
 
 // clears private data and delete the gamepad input info structure (this is what the xserver expects and if we don't provide any UnInit function it will call xf86DeleteInput() on our behalf and so it expects us to do it ourselves when we do provide a UnInit() function)
 static void GamepadCoreUnInit(
-	struct _InputDriverRec *driver_gamepad,
+	struct _InputDriverRec *driver_gamepad __attribute__ ((unused)),
 	struct _InputInfoRec *info_gamepad,
-	int flags
+	int flags __attribute__ ((unused))
 ) {
 	// NOTE: private is an address to a mmap region and so it's safe to nullify and we should because the xserver will try to free it otherwise and crash with flying colors!
 	if (info_gamepad->private) {
@@ -1374,9 +1374,9 @@ static XF86ModuleVersionInfo ModuleVersionGamepad = {
 // the pointer type is defined as typedef void* pointer in /usr/include/X11/Xdefs.h
 static void *GamepadDriverSetup(
 	void *module,
-	void *options,
-	int *errmaj,
-	int *errmin
+	void *options __attribute__ ((unused)),
+	int *errmaj __attribute__ ((unused)),
+	int *errmin __attribute__ ((unused))
 ) {
     xf86AddInputDriver(&GAMEPAD, module, 0);
     return module;
