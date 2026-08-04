@@ -1316,9 +1316,9 @@ static void GamepadCoreUnInit(
 		struct _GamepadModuleRec *mod = info_gamepad->private;
 		struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
 		// NOTE: we need to nullify this so that when the xserver tries to remove the attached keyboard we won't try to dereference an unmapped region; bear in mind that the xserver eventually will this GamepadCoreUnInit() function. This last call will happen after the user removes the gamepad from the computer.
-		private->info_keyboard->private = NULL;
 		munmap((void*) mod->base, mod->size);
-		info_gamepad->private = NULL;
+		private->info_gamepad->private = NULL;
+		private->info_keyboard->private = NULL;
 	}
 	char *src = xf86CheckStrOption(info_gamepad->options, "_source", NULL);
 #if DEVBUILD
