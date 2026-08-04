@@ -1229,7 +1229,17 @@ static int GamepadCorePreInit(
 		uint64_t const mask = mod->mask;
 		struct _GamepadDevRec device = {};
 		struct _GamepadDevRec *dev = &device;
-		if (base & mask) {
+		if (!base) {
+			xf86Msg(X_ERROR, "[%s] error: expected non-NULL mmap address\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto mhandler;
+		}
+		else if (!size) {
+			xf86Msg(X_ERROR, "[%s] error: expected non-zero mmap size\n", GAMEPAD_DRIVER_NAME);
+			rc = BadImplementation;
+			goto mhandler;
+		}
+		else if (base & mask) {
 			xf86Msg(X_ERROR, "[%s] error: expected paged-aligned address space\n", GAMEPAD_DRIVER_NAME);
 			rc = BadImplementation;
 			goto mhandler;
