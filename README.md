@@ -149,6 +149,16 @@ chown root.root gamepad.so
 chmod 644 gamepad.so
 ```
 
+## X Developer Tools
+
+The most useful tool to check what xevents are being sent from the xserver to the client is `xev`:
+
+```sh
+xev
+```
+
+by calling it without arguments it creates a window that you can click into, press buttons, press keys, etc. and it will tell you about those events. With this I was able to verify that the keycodes are `evdev` keycodes. If you ever want to know what's the keycode for a key now you know you can get them easily by just pressing the keys you are interested in.
+
 ## Debugging
 
 The way I am debugging the driver is by starting the xserver with `gdbserver`:
