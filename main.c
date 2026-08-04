@@ -660,7 +660,7 @@ static void GamepadDevRead(
 	// <UP> = 111; <LEFT> = 113; <DOWN> = 116; <RGHT> = 114;
 
 	keycode = 0;
-	keypressed = (0 == dev->iev.value) ? 1 : 0;
+	keypressed = (0 == dev->iev.value) ? 0 : 1;
 	if (dev->iev.type == EV_ABS) {
 		if (ABS_HAT0X == dev->iev.code) {
 			keycode = ((0 > dev->iev.value)
