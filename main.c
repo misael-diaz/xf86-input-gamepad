@@ -60,7 +60,9 @@ int statx(
 	0\
 )
 
+// NOTES:
 // evdev keyboard keycodes borrowed from /usr/share/X11/xkb/keycodes/evdev
+// these can also be verified/obtained by running `xev` and pressing the keyboard keys, the `xev` utility will show the keycodes, see man xev for more info.
 #define XKB_EVDEV_KEYCODE_W      25
 #define XKB_EVDEV_KEYCODE_A      38
 #define XKB_EVDEV_KEYCODE_S      39
