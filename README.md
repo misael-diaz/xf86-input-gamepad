@@ -7,6 +7,8 @@ This driver does not intend to handle analog signals (in the form of events) at 
 
 **Development status**: working Xinput driver for gamepads on linux. Don't like the key auto-repeat feature so I will be working on disabling it.
 
+[![Watch the Video](https://img.youtube.com/vi/20bckCBv-60/hqdefault.jpg)](https://youtu.be/20bckCBv-60)
+
 ## Development Progress
 
 ### Week 1: Getting to know my Gamepad through system calls
