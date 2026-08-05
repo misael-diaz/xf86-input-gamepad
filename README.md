@@ -5,7 +5,7 @@ I am writing this driver to learn about GNU/Linux, I am aware that new input dri
 
 This driver does not intend to handle analog signals (in the form of events) at this point, for now the driver is meant to handle events for action buttons and direction-pads (dpads).
 
-**Development status**: writing exploratory code to learn about the Linux legacy joystick event handling.
+**Development status**: working Xinput driver for gamepads on linux. Don't like the key auto-repeat feature so I will be working on disabling it.
 
 ## Development Progress
 
