@@ -23,6 +23,8 @@
 #include <xorg/xf86Module.h>
 #include <xorg/xf86Modes.h>
 #include <xorg/xf86Opt.h>
+#include <xorg/xserver-properties.h>
+#include <xorg/exevents.h>
 #include <xorg/xkbsrv.h>
 #include <xorg/optionstr.h>
 
@@ -44,6 +46,19 @@ int statx(
 #define PACKAGE_VERSION_MAJOR 1
 #define PACKAGE_VERSION_MINOR 0
 #define PACKAGE_VERSION_PATCHLEVEL 0
+
+#define GAMEPAD_SCREEN_VALUATOR_X 0
+#define GAMEPAD_SCREEN_VALUATOR_Y 1
+#define GAMEPAD_AXIS_VALUATOR_X 2
+#define GAMEPAD_AXIS_VALUATOR_Y 3
+#define GAMEPAD_AXES_MAX 2
+#define GAMEPAD_VALUATOR_SCREEN_AXNO 2
+#define GAMEPAD_VALUATOR_DEVICE_AXNO 2
+#define GAMEPAD_VALUATOR_AXNO (\
+	(GAMEPAD_VALUATOR_SCREEN_AXNO) +\
+	(GAMEPAD_VALUATOR_DEVICE_AXNO) +\
+	0\
+)
 
 // evdev keyboard keycodes borrowed from /usr/share/X11/xkb/keycodes/evdev
 #define XKB_EVDEV_KEYCODE_W      25
@@ -379,6 +394,11 @@ static int GamepadKbdCtrlProc(
 	}
 	break;
 
+	case DEVICE_ABORT: {
+		dev_keyboard->public.on = FALSE;
+	}
+	break;
+
 	default: {
 		rc = BadImplementation;
 		xf86Msg(X_DEBUG, "[%s] GamepadKbdCtrlProc: error: unknown action\n", GAMEPAD_DRIVER_NAME);
@@ -695,7 +715,7 @@ static void GamepadDevRead(
 		return;
 	}
 
-	xf86PostKeyboardEvent(info_gamepad->dev, keycode, keypressed);
+	xf86PostKeyboardEvent(dev->info_keyboard->dev, keycode, keypressed);
 	return;
 disable: {
 		xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: missing internal read function\n", GAMEPAD_DRIVER_NAME);
@@ -828,9 +848,17 @@ static int GamepadDevInit(
 	struct _GamepadDevRec *private = (void*) (((char*) mod->base) + mod->offset_private);
 	uint64_t keybits[NBITS(KEY_CNT)];
 	uint64_t absbits[NBITS(ABS_CNT)];
+	Atom label_axes[GAMEPAD_VALUATOR_AXNO];
+	char *name_axes[] = {
+		"GamepadXScreenAxisStub",
+		"GamepadYScreenAxisStub",
+		"GamepadXAxis",
+		"GamepadYAxis"
+	};
 	struct input_mask im = {};
 
 	uint8_t buttons = 0;
+	Bool stat = FALSE;
 	int fd = private->fd;
 	int rc = BadImplementation;
 	if (-1 == fd) {
@@ -895,9 +923,96 @@ static int GamepadDevInit(
 		}
 	}
 
-	if (2 != axes) {
+	if (GAMEPAD_AXES_MAX != axes) {
 		// NOTES: if we don't bail here the user won't be able to use the dpad, am not expecting users to reach me out to have the driver support gamepads that report dpads as buttons and this is why I am not doing it even though I can do it
 		xf86Msg(X_ERROR, "[%s] error: expected a dpad reported in the absolute axes bits\n", GAMEPAD_DRIVER_NAME);
+		rc = BadRequest;
+		return rc;
+	}
+
+	// NOTE: we need to register atoms for the axis valuators of the gamepad
+	for (int ax = 0; ax != GAMEPAD_VALUATOR_AXNO; ++ax) {
+		label_axes[ax] = MakeAtom(name_axes[ax], strlen(name_axes[ax]), TRUE);
+	}
+
+	// NOTE: without screen and axes valuators the xserver will ignore our key post events
+	stat = InitValuatorClassDeviceStruct(
+		info_gamepad->dev,
+		GAMEPAD_VALUATOR_AXNO,
+		label_axes,
+		GetMotionHistorySize(),
+		Relative
+	);
+
+	if (!stat) {
+		rc = BadRequest;
+		return rc;
+	}
+
+	stat = InitValuatorAxisStruct(
+		info_gamepad->dev,
+		GAMEPAD_SCREEN_VALUATOR_X,
+		XIGetKnownProperty(AXIS_LABEL_PROP_REL_X),
+		0,
+		screenInfo.screens[0]->width,
+		1,
+		0,
+		1,
+		Absolute
+	);
+
+	if (!stat) {
+		rc = BadRequest;
+		return rc;
+	}
+
+	stat = InitValuatorAxisStruct(
+		info_gamepad->dev,
+		GAMEPAD_SCREEN_VALUATOR_Y,
+		XIGetKnownProperty(AXIS_LABEL_PROP_REL_Y),
+		0,
+		screenInfo.screens[0]->height,
+		1,
+		0,
+		1,
+		Absolute
+	);
+
+	if (!stat) {
+		rc = BadRequest;
+		return rc;
+	}
+
+	stat = InitValuatorAxisStruct(
+		info_gamepad->dev,
+		GAMEPAD_AXIS_VALUATOR_X,
+		label_axes[GAMEPAD_AXIS_VALUATOR_X],
+		-32768,
+		+32767,
+		1,
+		0,
+		1,
+		Absolute
+	);
+
+	if (!stat) {
+		rc = BadRequest;
+		return rc;
+	}
+
+	stat = InitValuatorAxisStruct(
+		info_gamepad->dev,
+		GAMEPAD_AXIS_VALUATOR_Y,
+		label_axes[GAMEPAD_AXIS_VALUATOR_Y],
+		-32768,
+		+32767,
+		1,
+		0,
+		1,
+		Absolute
+	);
+
+	if (!stat) {
 		rc = BadRequest;
 		return rc;
 	}
@@ -952,6 +1067,8 @@ static int GamepadDevCtrlProc(
 	}
 	break;
 
+	case DEVICE_ABORT:
+	__attribute__ ((fallthrough));
 	case DEVICE_OFF: {
 		 // DEVICE OFF means that we unregister the device file descriptor but that does not imply closing the device
 		dev_gamepad->public.on = FALSE;
