@@ -678,7 +678,7 @@ static void GamepadDevRead(
 		return;
 	}
 
-	// TODO: the fun part starts we need to find out how to map kernel input events to evdev xkb event codes to know what to do here; from /usr/share/X11/xbd/keycodes/evdev:
+	// NOTE: using evdev keycodes from /usr/share/X11/xbd/keycodes/evdev:
 	// <UP> = 111; <LEFT> = 113; <DOWN> = 116; <RGHT> = 114;
 
 	keycode = 0;
