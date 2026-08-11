@@ -78,6 +78,12 @@ This is a recording of a GDB session that walks through the xserver code from th
 
 [![Watch the Video](https://img.youtube.com/vi/20bckCBv-60/hqdefault.jpg)](https://youtu.be/20bckCBv-60)
 
+### Maintenance
+
+The project is considered feature complete at least for my own games. Here is where I document maintenance tasks.
+
+-**fixes dpad autorepeat**: the code was counting on the linux kernel to indicate the driver was dpad axis was released but we cannot reliably do that because it only tells us that one of the axes has been released. By storing the previous key pressed we have fixed the driver logic to determine what was the axis released. This was fixed in commit [e52f88d8]()(https://github.com/misael-diaz/xf86-input-gamepad/tree/e52f88d87e982aba7856533b8c97ae5c2193b1d3).
+
 ## Requirements
 
 Install the development files
