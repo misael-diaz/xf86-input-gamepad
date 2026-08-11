@@ -127,6 +127,8 @@ struct _GamepadDevRec {
 	struct _InputInfoRec *info_keyboard;
 	struct input_event iev;
 	int fd;
+	int unsigned keycode;
+	int unsigned prev_keycode;
 	uint8_t unsynced;
 	uint8_t buttons;
 	uint8_t axes;
@@ -685,16 +687,32 @@ static void GamepadDevRead(
 	keypressed = (0 == dev->iev.value) ? 0 : 1;
 	if (dev->iev.type == EV_ABS) {
 		if (ABS_HAT0X == dev->iev.code) {
+			if (0 == dev->iev.value) {
+				if (!dev->prev_keycode) {
+					xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: WARNING: prev_keycode was not set\n", GAMEPAD_DRIVER_NAME);
+				}
+				keycode = dev->prev_keycode;
+			}
+			else {
 			keycode = ((0 > dev->iev.value)
 				? XKB_EVDEV_KEYCODE_LEFT
 				: XKB_EVDEV_KEYCODE_RIGHT
 			);
+			}
 		}
 		else if (ABS_HAT0Y == dev->iev.code) {
+			if (0 == dev->iev.value) {
+				if (!dev->prev_keycode) {
+					xf86Msg(X_ERROR, "[%s] error: GamepadDevRead: WARNING: prev_keycode was not set\n", GAMEPAD_DRIVER_NAME);
+				}
+				keycode = dev->prev_keycode;
+			}
+			else {
 			keycode = ((0 > dev->iev.value)
 				? XKB_EVDEV_KEYCODE_UP
 				: XKB_EVDEV_KEYCODE_DOWN
 			);
+			}
 		}
 	}
 	else if (dev->iev.type == EV_KEY) {
@@ -715,6 +733,12 @@ static void GamepadDevRead(
 	// NOTE: user pressed other buttons that we have yet to define and so we ignore those events (for now)
 	if (!keycode) {
 		return;
+	}
+
+	// NOTE: this is so that we know when dpad axes/buttons are released; also we are counting on the linux kernel to send us the events in order
+	if (EV_ABS == dev->iev.type) {
+		dev->keycode = keycode;
+		dev->prev_keycode = dev->keycode;
 	}
 
 	xf86PostKeyboardEvent(dev->info_keyboard->dev, keycode, keypressed);
